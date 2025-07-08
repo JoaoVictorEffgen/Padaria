@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
@@ -7,6 +9,7 @@ import json
 import uuid
 from io import BytesIO
 import base64
+import os
 
 from . import models, schemas
 from .database import engine, get_db
@@ -18,6 +21,11 @@ app = FastAPI(title="Sistema Padaria API", version="2.0.0")
 
 # Configurações
 BASE_URL = "http://localhost:8000"
+
+# Servir arquivos estáticos
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Endpoints para Mesas
 @app.get("/mesas/", response_model=List[schemas.Mesa])
@@ -372,6 +380,55 @@ def obter_menu_publico(mesa_id: int, db: Session = Depends(get_db)):
             for p in produtos
         ]
     }
+
+# Endpoint para página principal
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    """Página principal do site da padaria"""
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    index_path = os.path.join(static_dir, "index.html")
+    
+    if os.path.exists(index_path):
+        with open(index_path, 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
+    else:
+        return HTMLResponse(content="""
+        <html>
+            <head><title>Padaria Delícias</title></head>
+            <body>
+                <h1>Bem-vindo à Padaria Delícias!</h1>
+                <p>Site em construção. Em breve estará disponível.</p>
+            </body>
+        </html>
+        """)
+
+# Endpoint para pedidos online
+@app.post("/pedidos-online/")
+async def criar_pedido_online(pedido: dict):
+    """Criar pedido online para entrega"""
+    try:
+        # Aqui você pode implementar a lógica para salvar o pedido
+        # Por enquanto, apenas retornamos sucesso
+        return {
+            "success": True,
+            "message": "Pedido recebido com sucesso! Entraremos em contato em breve.",
+            "pedido_id": str(uuid.uuid4())
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao processar pedido: {str(e)}")
+
+# Endpoint para contato
+@app.post("/contato/")
+async def enviar_contato(contato: dict):
+    """Enviar mensagem de contato"""
+    try:
+        # Aqui você pode implementar a lógica para enviar email ou salvar contato
+        return {
+            "success": True,
+            "message": "Mensagem enviada com sucesso! Entraremos em contato em breve."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao enviar mensagem: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

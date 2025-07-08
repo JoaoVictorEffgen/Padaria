@@ -1,0 +1,8 @@
+Esta pasta contém as imagens do site da padaria.
+
+Para uma experiência completa, adicione as seguintes imagens:
+- hero-bread.jpg (imagem principal do hero)
+- about-bakery.jpg (imagem da seção sobre)
+- favicon.ico (ícone do site)
+
+As imagens devem ter boa qualidade e estar otimizadas para web. 

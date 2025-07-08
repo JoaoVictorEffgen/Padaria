@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padaria Delícias - Faça seu pedido online</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="nav-logo">
+                    <i class="fas fa-bread-slice"></i>
+                    <span>Padaria Delícias</span>
+                </div>
+                <div class="nav-menu">
+                    <a href="#home" class="nav-link">Início</a>
+                    <a href="#menu" class="nav-link">Cardápio</a>
+                    <a href="#about" class="nav-link">Sobre</a>
+                    <a href="#contact" class="nav-link">Contato</a>
+                </div>
+                <div class="nav-toggle">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">Sabor e Qualidade em Cada Pedaço</h1>
+                <p class="hero-subtitle">Faça seu pedido online e receba em casa com toda a frescura da nossa padaria</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary" onclick="scrollToMenu()">
+                        <i class="fas fa-utensils"></i>
+                        Ver Cardápio
+                    </button>
+                    <button class="btn btn-whatsapp" onclick="openWhatsApp()">
+                        <i class="fab fa-whatsapp"></i>
+                        Pedir pelo WhatsApp
+                    </button>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="/static/images/hero-bread.jpg" alt="Pães frescos">
+            </div>
+        </div>
+    </section>
+
+    <!-- Menu Section -->
+    <section id="menu" class="menu">
+        <div class="container">
+            <div class="section-header">
+                <h2>Nosso Cardápio</h2>
+                <p>Produtos frescos feitos com carinho</p>
+            </div>
+            
+            <!-- Category Filter -->
+            <div class="category-filter">
+                <button class="filter-btn active" data-category="all">Todos</button>
+                <button class="filter-btn" data-category="Pães">Pães</button>
+                <button class="filter-btn" data-category="Bebidas">Bebidas</button>
+                <button class="filter-btn" data-category="Doces">Doces</button>
+                <button class="filter-btn" data-category="Salgados">Salgados</button>
+                <button class="filter-btn" data-category="Cafés">Cafés</button>
+            </div>
+
+            <!-- Products Grid -->
+            <div class="products-grid" id="productsGrid">
+                <!-- Products will be loaded here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Order Cart -->
+    <div class="cart-sidebar" id="cartSidebar">
+        <div class="cart-header">
+            <h3><i class="fas fa-shopping-cart"></i> Seu Pedido</h3>
+            <button class="cart-close" onclick="toggleCart()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <!-- Cart items will be added here -->
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Total:</span>
+                <span id="cartTotal">R$ 0,00</span>
+            </div>
+            <button class="btn btn-primary btn-full" onclick="finalizeOrder()">
+                <i class="fab fa-whatsapp"></i>
+                Finalizar Pedido
+            </button>
+        </div>
+    </div>
+
+    <!-- Cart Toggle Button -->
+    <button class="cart-toggle" onclick="toggleCart()" id="cartToggle">
+        <i class="fas fa-shopping-cart"></i>
+        <span class="cart-count" id="cartCount">0</span>
+    </button>
+
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <div class="about-content">
+                <div class="about-text">
+                    <h2>Sobre Nossa Padaria</h2>
+                    <p>Há mais de 20 anos, nossa padaria tem sido sinônimo de qualidade e tradição. Utilizamos ingredientes selecionados e técnicas artesanais para criar produtos únicos que fazem parte da sua rotina.</p>
+                    <div class="features">
+                        <div class="feature">
+                            <i class="fas fa-clock"></i>
+                            <h4>Horário Estendido</h4>
+                            <p>Funcionamos das 6h às 22h</p>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-truck"></i>
+                            <h4>Entrega Rápida</h4>
+                            <p>Entregamos em até 30 minutos</p>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-heart"></i>
+                            <h4>Feito com Amor</h4>
+                            <p>Cada produto é feito artesanalmente</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="about-image">
+                    <img src="/static/images/about-bakery.jpg" alt="Nossa padaria">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <div class="section-header">
+                <h2>Entre em Contato</h2>
+                <p>Estamos aqui para atender você</p>
+            </div>
+            <div class="contact-content">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <h4>Endereço</h4>
+                            <p>Rua das Flores, 123 - Centro</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <h4>Telefone</h4>
+                            <p>(11) 99999-9999</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fab fa-whatsapp"></i>
+                        <div>
+                            <h4>WhatsApp</h4>
+                            <p>(11) 99999-9999</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <h4>Horário</h4>
+                            <p>Segunda a Domingo: 6h às 22h</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="contact-form">
+                    <form id="contactForm">
+                        <div class="form-group">
+                            <input type="text" id="name" placeholder="Seu nome" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" id="email" placeholder="Seu email" required>
+                        </div>
+                        <div class="form-group">
+                            <textarea id="message" placeholder="Sua mensagem" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                            Enviar Mensagem
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Padaria Delícias</h3>
+                    <p>Sabor e qualidade em cada pedaço desde 2003.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-whatsapp"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h4>Links Rápidos</h4>
+                    <ul>
+                        <li><a href="#home">Início</a></li>
+                        <li><a href="#menu">Cardápio</a></li>
+                        <li><a href="#about">Sobre</a></li>
+                        <li><a href="#contact">Contato</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Horário de Funcionamento</h4>
+                    <p>Segunda a Domingo</p>
+                    <p>6h às 22h</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Padaria Delícias. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Carregando...</p>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal" id="successModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-check-circle"></i> Pedido Enviado!</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Seu pedido foi enviado com sucesso! Em breve entraremos em contato para confirmar.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html> 
