@@ -18,18 +18,18 @@ def print_header():
     print("           SISTEMA DE PADARIA - VERSÃO 2.0")
     print("=" * 60)
     print("Recursos implementados:")
-    print("✓ Sistema Desktop (PyQt5)")
-    print("✓ Backend API (FastAPI)")
-    print("✓ Aplicativo Tablet (Flutter)")
-    print("✓ Impressão de Comandas")
-    print("✓ Painel para Garçons")
-    print("✓ Modo Offline com Sincronização")
-    print("✓ QR Code para Menu Público")
+    print("[OK] Sistema Desktop (PyQt5)")
+    print("[OK] Backend API (FastAPI)")
+    print("[OK] Aplicativo Tablet (Flutter)")
+    print("[OK] Impressão de Comandas")
+    print("[OK] Painel para Garçons")
+    print("[OK] Modo Offline com Sincronização")
+    print("[OK] QR Code para Menu Público")
     print("=" * 60)
 
 def check_python_installation():
     """Verifica se Python está instalado e acessível"""
-    print("🔍 Verificando instalação do Python...")
+    print("[INFO] Verificando instalação do Python...")
     
     # Tentar diferentes comandos Python
     python_commands = ['python', 'python3', 'py']
@@ -41,19 +41,19 @@ def check_python_installation():
                                   capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 python_path = cmd
-                print(f"✅ Python encontrado: {result.stdout.strip()}")
+                print(f"[OK] Python encontrado: {result.stdout.strip()}")
                 break
         except (FileNotFoundError, subprocess.TimeoutExpired):
             continue
     
     if not python_path:
-        print("❌ Python não encontrado no sistema!")
-        print("\n📥 Para instalar o Python:")
+        print("[ERRO] Python não encontrado no sistema!")
+        print("\n[INFO] Para instalar o Python:")
         print("1. Acesse: https://www.python.org/downloads/")
         print("2. Baixe a versão mais recente (3.8 ou superior)")
         print("3. Durante a instalação, MARQUE 'Add Python to PATH'")
         print("4. Reinicie o terminal após a instalação")
-        print("\n🔄 Ou use o Microsoft Store:")
+        print("\n[INFO] Ou use o Microsoft Store:")
         print("   - Abra Microsoft Store")
         print("   - Procure por 'Python'")
         print("   - Instale a versão mais recente")
@@ -76,27 +76,27 @@ def check_python_version(python_cmd):
             major, minor = map(int, version.split('.'))
             
             if major >= 3 and minor >= 8:
-                print(f"✅ Python {version} - Versão compatível")
+                print(f"[OK] Python {version} - Versão compatível")
                 return True
             else:
-                print(f"❌ Python {version} - Versão muito antiga")
+                print(f"[ERRO] Python {version} - Versão muito antiga")
                 print("   Necessário Python 3.8 ou superior")
                 return False
         else:
-            print(f"⚠️  Não foi possível determinar a versão: {version_output}")
+            print(f"[AVISO] Não foi possível determinar a versão: {version_output}")
             return True  # Assumir que é compatível
             
     except Exception as e:
-        print(f"❌ Erro ao verificar versão: {e}")
+        print(f"[ERRO] Erro ao verificar versão: {e}")
         return False
 
 def install_dependencies(python_cmd):
     """Instala dependências Python"""
-    print("\n📦 Instalando dependências Python...")
+    print("\n[INFO] Instalando dependências Python...")
     try:
         # Verificar se requirements.txt existe
         if not Path("requirements.txt").exists():
-            print("❌ Arquivo requirements.txt não encontrado")
+            print("[ERRO] Arquivo requirements.txt não encontrado")
             return False
         
         # Instalar dependências
@@ -104,24 +104,24 @@ def install_dependencies(python_cmd):
                               capture_output=True, text=True)
         
         if result.returncode == 0:
-            print("✅ Dependências Python instaladas com sucesso")
+            print("[OK] Dependências Python instaladas com sucesso")
             return True
         else:
-            print(f"❌ Erro ao instalar dependências:")
+            print(f"[ERRO] Erro ao instalar dependências:")
             print(result.stderr)
             return False
             
     except Exception as e:
-        print(f"❌ Erro ao instalar dependências: {e}")
+        print(f"[ERRO] Erro ao instalar dependências: {e}")
         return False
 
 def setup_database(python_cmd):
     """Configura banco de dados"""
-    print("\n🗄️  Configurando banco de dados...")
+    print("\n[INFO] Configurando banco de dados...")
     try:
         # Verificar se o backend existe
         if not Path("backend").exists():
-            print("❌ Diretório 'backend' não encontrado")
+            print("[ERRO] Diretório 'backend' não encontrado")
             return False
         
         # Executar setup do banco
@@ -135,7 +135,7 @@ from app.models import Mesa, Produto, Garcom
 
 # Criar tabelas
 models.Base.metadata.create_all(bind=engine)
-print("✅ Tabelas criadas com sucesso")
+print("[OK] Tabelas criadas com sucesso")
 
 # Inserir dados iniciais
 db = SessionLocal()
@@ -146,7 +146,7 @@ if db.query(Mesa).count() == 0:
     for i in range(1, 11):
         mesa = Mesa(numero=i, status="livre")
         db.add(mesa)
-    print("✅ 10 mesas criadas")
+    print("[OK] 10 mesas criadas")
 
 if db.query(Produto).count() == 0:
     # Criar produtos
@@ -164,7 +164,7 @@ if db.query(Produto).count() == 0:
     ]
     for produto in produtos:
         db.add(produto)
-    print("✅ 10 produtos criados")
+    print("[OK] 10 produtos criados")
 
 if db.query(Garcom).count() == 0:
     # Criar garçons
@@ -175,28 +175,28 @@ if db.query(Garcom).count() == 0:
     ]
     for garcom in garcons:
         db.add(garcom)
-    print("✅ 3 garçons criados")
+    print("[OK] 3 garçons criados")
 
 db.commit()
 db.close()
-print("✅ Banco de dados configurado com sucesso")
+print("[OK] Banco de dados configurado com sucesso")
         """], capture_output=True, text=True)
         
         if result.returncode == 0:
             print(result.stdout)
             return True
         else:
-            print(f"❌ Erro ao configurar banco:")
+            print(f"[ERRO] Erro ao configurar banco:")
             print(result.stderr)
             return False
         
     except Exception as e:
-        print(f"❌ Erro ao configurar banco: {e}")
+        print(f"[ERRO] Erro ao configurar banco: {e}")
         return False
 
 def start_backend(python_cmd):
     """Inicia o backend"""
-    print("\n🚀 Iniciando Backend API...")
+    print("\n[INFO] Iniciando Backend API...")
     try:
         # Verificar se a porta está livre
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -204,7 +204,7 @@ def start_backend(python_cmd):
         sock.close()
         
         if result == 0:
-            print("⚠️  Porta 8000 já está em uso. Backend pode já estar rodando.")
+            print("[AVISO] Porta 8000 já está em uso. Backend pode já estar rodando.")
             return True
         
         # Iniciar backend em background
@@ -218,7 +218,7 @@ def start_backend(python_cmd):
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
         # Aguardar backend inicializar
-        print("⏳ Aguardando backend inicializar...")
+        print("[INFO] Aguardando backend inicializar...")
         time.sleep(5)
         
         # Testar conexão
@@ -226,25 +226,25 @@ def start_backend(python_cmd):
             import requests
             response = requests.get("http://localhost:8000/docs", timeout=5)
             if response.status_code == 200:
-                print("✅ Backend iniciado com sucesso")
-                print("📖 Documentação API: http://localhost:8000/docs")
+                print("[OK] Backend iniciado com sucesso")
+                print("[INFO] Documentação API: http://localhost:8000/docs")
                 return True
         except:
             pass
         
-        print("⚠️  Backend pode ter iniciado, mas não foi possível verificar")
+        print("[AVISO] Backend pode ter iniciado, mas não foi possível verificar")
         return True
         
     except Exception as e:
-        print(f"❌ Erro ao iniciar backend: {e}")
+        print(f"[ERRO] Erro ao iniciar backend: {e}")
         return False
 
 def start_desktop(python_cmd):
     """Inicia aplicação desktop"""
-    print("\n🖥️  Iniciando aplicação Desktop...")
+    print("\n[INFO] Iniciando aplicação Desktop...")
     try:
         if not Path("desktop/main.py").exists():
-            print("❌ Arquivo desktop/main.py não encontrado")
+            print("[ERRO] Arquivo desktop/main.py não encontrado")
             return False
         
         if platform.system() == "Windows":
@@ -254,8 +254,8 @@ def start_desktop(python_cmd):
             subprocess.Popen([python_cmd, "desktop/main.py"],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
-        print("✅ Aplicação Desktop iniciada")
-        print("💡 Recursos disponíveis:")
+        print("[OK] Aplicação Desktop iniciada")
+        print("[INFO] Recursos disponíveis:")
         print("   • Gestão de Comandas")
         print("   • Cadastro de Produtos")
         print("   • Gestão de Mesas")
@@ -265,7 +265,7 @@ def start_desktop(python_cmd):
         return True
         
     except Exception as e:
-        print(f"❌ Erro ao iniciar desktop: {e}")
+        print(f"[ERRO] Erro ao iniciar desktop: {e}")
         return False
 
 def check_flutter():
@@ -274,13 +274,13 @@ def check_flutter():
         result = subprocess.run(["flutter", "--version"], 
                               capture_output=True, text=True)
         if result.returncode == 0:
-            print("✅ Flutter encontrado")
+            print("[OK] Flutter encontrado")
             return True
     except FileNotFoundError:
         pass
     
-    print("⚠️  Flutter não encontrado")
-    print("📱 Para usar o aplicativo tablet, instale o Flutter:")
+    print("[AVISO] Flutter não encontrado")
+    print("[INFO] Para usar o aplicativo tablet, instale o Flutter:")
     print("   https://flutter.dev/docs/get-started/install")
     return False
 
@@ -289,11 +289,11 @@ def setup_tablet():
     if not check_flutter():
         return False
     
-    print("\n📱 Configurando aplicativo Tablet...")
+    print("\n[INFO] Configurando aplicativo Tablet...")
     try:
         # Verificar se o projeto Flutter existe
         if not Path("tablet").exists():
-            print("❌ Diretório 'tablet' não encontrado")
+            print("[ERRO] Diretório 'tablet' não encontrado")
             return False
         
         # Instalar dependências Flutter
@@ -301,19 +301,19 @@ def setup_tablet():
         subprocess.run(["flutter", "pub", "get"], check=True, capture_output=True)
         os.chdir("..")
         
-        print("✅ Dependências Flutter instaladas")
-        print("📱 Para executar o tablet:")
+        print("[OK] Dependências Flutter instaladas")
+        print("[INFO] Para executar o tablet:")
         print("   cd tablet")
         print("   flutter run")
         return True
         
     except Exception as e:
-        print(f"❌ Erro ao configurar tablet: {e}")
+        print(f"[ERRO] Erro ao configurar tablet: {e}")
         return False
 
 def show_network_info():
     """Mostra informações de rede"""
-    print("\n🌐 Informações de Rede:")
+    print("\n[INFO] Informações de Rede:")
     try:
         # Obter IP local
         hostname = socket.gethostname()
@@ -325,17 +325,17 @@ def show_network_info():
         print(f"   Documentação: http://{local_ip}:8000/docs")
         print(f"   Menu Público: http://{local_ip}:8000/menu/1")
         
-        print("\n📱 Para conectar tablets:")
+        print("\n[INFO] Para conectar tablets:")
         print(f"   • Configure o IP {local_ip} no aplicativo")
         print(f"   • Use a mesma rede Wi-Fi")
         print(f"   • Teste a conexão: http://{local_ip}:8000/produtos/")
         
     except Exception as e:
-        print(f"❌ Erro ao obter informações de rede: {e}")
+        print(f"[ERRO] Erro ao obter informações de rede: {e}")
 
 def show_qr_code_info():
     """Mostra informações sobre QR Code"""
-    print("\n📱 QR Code para Menu Público:")
+    print("\n[INFO] QR Code para Menu Público:")
     print("   • Cada mesa tem seu próprio QR Code")
     print("   • Acesse: http://localhost:8000/mesas/1/qr-code")
     print("   • Clientes podem escanear e ver o menu")
@@ -343,7 +343,7 @@ def show_qr_code_info():
 
 def show_offline_info():
     """Mostra informações sobre modo offline"""
-    print("\n📱 Modo Offline:")
+    print("\n[INFO] Modo Offline:")
     print("   • Tablet funciona sem internet")
     print("   • Dados são salvos localmente")
     print("   • Sincronização automática quando online")
@@ -356,32 +356,32 @@ def main():
     # Verificar Python
     python_cmd = check_python_installation()
     if not python_cmd:
-        print("\n❌ Python não encontrado. Instale o Python primeiro.")
+        print("\n[ERRO] Python não encontrado. Instale o Python primeiro.")
         return
     
     # Verificar versão
     if not check_python_version(python_cmd):
-        print("\n❌ Versão do Python incompatível.")
+        print("\n[ERRO] Versão do Python incompatível.")
         return
     
     # Instalar dependências
     if not install_dependencies(python_cmd):
-        print("❌ Falha na instalação de dependências")
+        print("[ERRO] Falha na instalação de dependências")
         return
     
     # Configurar banco
     if not setup_database(python_cmd):
-        print("❌ Falha na configuração do banco")
+        print("[ERRO] Falha na configuração do banco")
         return
     
     # Iniciar backend
     if not start_backend(python_cmd):
-        print("❌ Falha ao iniciar backend")
+        print("[ERRO] Falha ao iniciar backend")
         return
     
     # Iniciar desktop
     if not start_desktop(python_cmd):
-        print("❌ Falha ao iniciar desktop")
+        print("[ERRO] Falha ao iniciar desktop")
         return
     
     # Configurar tablet (opcional)
@@ -393,19 +393,19 @@ def main():
     show_offline_info()
     
     print("\n" + "=" * 60)
-    print("🎉 Sistema iniciado com sucesso!")
+    print("[OK] Sistema iniciado com sucesso!")
     print("=" * 60)
-    print("\n📋 Próximos passos:")
+    print("\n[INFO] Próximos passos:")
     print("1. Abra o aplicativo Desktop")
     print("2. Configure impressoras (se necessário)")
     print("3. Teste a criação de comandas")
     print("4. Configure tablets na mesma rede")
     print("5. Teste o QR Code das mesas")
-    print("\n🔧 Comandos úteis:")
+    print("\n[INFO] Comandos úteis:")
     print("   • Parar backend: Ctrl+C no terminal do backend")
     print("   • Ver logs: tail -f backend.log")
     print("   • Backup DB: cp padaria.db backup/")
-    print("\n📞 Suporte:")
+    print("\n[INFO] Suporte:")
     print("   • Documentação: README.md")
     print("   • Demo: DEMO.md")
     print("   • Resumo: RESUMO_EXECUTIVO.md")

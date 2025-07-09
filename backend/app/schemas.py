@@ -154,4 +154,57 @@ class QRCodeResponse(BaseModel):
     mesa_id: int
     mesa_numero: int
     qr_code_url: str
-    menu_url: str 
+    menu_url: str
+
+# Schemas para Pedidos Online
+class ItemPedidoOnlineBase(BaseModel):
+    produto_id: int
+    quantidade: int
+    preco_unitario: float
+    observacoes: Optional[str] = None
+
+class ItemPedidoOnlineCreate(ItemPedidoOnlineBase):
+    pass
+
+class ItemPedidoOnline(ItemPedidoOnlineBase):
+    id: int
+    pedido_id: int
+    produto: Produto
+    
+    class Config:
+        from_attributes = True
+
+class PedidoOnlineBase(BaseModel):
+    nome_cliente: str
+    telefone: str
+    endereco: str
+    forma_pagamento: str
+    observacoes: Optional[str] = None
+
+class PedidoOnlineCreate(PedidoOnlineBase):
+    itens: List[ItemPedidoOnlineCreate]
+
+class PedidoOnline(PedidoOnlineBase):
+    id: int
+    total: float
+    status: str
+    data_pedido: datetime
+    data_confirmacao: Optional[datetime] = None
+    data_entrega: Optional[datetime] = None
+    whatsapp_enviado: bool
+    itens: List[ItemPedidoOnline] = []
+    
+    class Config:
+        from_attributes = True
+
+class PedidoOnlineResumo(BaseModel):
+    id: int
+    nome_cliente: str
+    telefone: str
+    total: float
+    status: str
+    data_pedido: datetime
+    quantidade_itens: int
+    
+    class Config:
+        from_attributes = True 

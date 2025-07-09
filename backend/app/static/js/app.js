@@ -5,7 +5,7 @@ const CONFIG = {
     WHATSAPP_MESSAGE: 'Olá! Gostaria de fazer um pedido de entrega.',
     CURRENCY: 'R$',
     DELIVERY_FEE: 5.00,
-    MINIMUM_ORDER: 15.00
+    MINIMUM_ORDER: 1.00
 };
 
 // Estado global da aplicação
@@ -314,31 +314,165 @@ function toggleCart() {
 // Finalizar pedido via WhatsApp
 function finalizeOrder() {
     if (appState.cart.length === 0) {
-        showError('Adicione produtos ao carrinho antes de finalizar o pedido.');
+        showError('Adicione itens ao carrinho antes de finalizar o pedido.');
         return;
     }
     
-    const total = appState.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
-    // Verificar pedido mínimo
+    // Verificar valor mínimo
+    const total = calculateCartTotal();
     if (total < CONFIG.MINIMUM_ORDER) {
-        showError(`Pedido mínimo para entrega é de ${CONFIG.CURRENCY} ${CONFIG.MINIMUM_ORDER.toFixed(2)}. Adicione mais itens ao carrinho.`);
+        showError(`Pedido mínimo de ${CONFIG.CURRENCY} ${CONFIG.MINIMUM_ORDER.toFixed(2)}`);
         return;
     }
     
-    const orderMessage = generateOrderMessage();
-    const whatsappUrl = `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${encodeURIComponent(orderMessage)}`;
+    // Mostrar modal de finalização
+    showOrderModal();
+}
+
+function calculateCartTotal() {
+    return appState.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+}
+
+function showOrderModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.id = 'orderModal';
     
-    // Abrir WhatsApp
-    window.open(whatsappUrl, '_blank');
+    const total = calculateCartTotal();
     
-    // Mostrar modal de sucesso
-    showSuccessModal();
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-shopping-cart"></i> Finalizar Pedido</h3>
+                <button class="modal-close" onclick="closeOrderModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="orderForm">
+                    <div class="form-group">
+                        <label for="customerName">Nome Completo *</label>
+                        <input type="text" id="customerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerPhone">Telefone *</label>
+                        <input type="tel" id="customerPhone" placeholder="(11) 99999-9999" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerAddress">Endereço de Entrega *</label>
+                        <textarea id="customerAddress" rows="3" placeholder="Rua, número, bairro, cidade" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="paymentMethod">Forma de Pagamento *</label>
+                        <select id="paymentMethod" required>
+                            <option value="">Selecione...</option>
+                            <option value="dinheiro">Dinheiro</option>
+                            <option value="pix">PIX</option>
+                            <option value="cartao">Cartão de Crédito/Débito</option>
+                            <option value="transferencia">Transferência Bancária</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="orderNotes">Observações</label>
+                        <textarea id="orderNotes" rows="2" placeholder="Instruções especiais, troco, etc."></textarea>
+                    </div>
+                    <div class="order-summary">
+                        <h4>Resumo do Pedido</h4>
+                        <div class="order-items">
+                            ${appState.cart.map(item => `
+                                <div class="order-item">
+                                    <span>${item.quantity}x ${item.name}</span>
+                                    <span>${CONFIG.CURRENCY} ${(item.price * item.quantity).toFixed(2)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="order-total">
+                            <strong>Total: ${CONFIG.CURRENCY} ${total.toFixed(2)}</strong>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeOrderModal()">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                            Enviar Pedido
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
     
-    // Limpar carrinho
-    appState.cart = [];
-    updateCartDisplay();
-    saveCartToStorage();
+    document.body.appendChild(modal);
+    
+    // Configurar formulário
+    const form = document.getElementById('orderForm');
+    form.addEventListener('submit', handleOrderSubmit);
+    
+    // Focar no primeiro campo
+    document.getElementById('customerName').focus();
+}
+
+function closeOrderModal() {
+    const modal = document.getElementById('orderModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+async function handleOrderSubmit(e) {
+    e.preventDefault();
+    
+    const formData = {
+        nome_cliente: document.getElementById('customerName').value,
+        telefone: document.getElementById('customerPhone').value,
+        endereco: document.getElementById('customerAddress').value,
+        forma_pagamento: document.getElementById('paymentMethod').value,
+        observacoes: document.getElementById('orderNotes').value,
+        itens: appState.cart.map(item => ({
+            produto_id: item.id,
+            quantidade: item.quantity,
+            preco_unitario: item.price,
+            observacoes: null
+        }))
+    };
+    
+    try {
+        showLoading(true);
+        
+        const response = await fetch(`${CONFIG.API_BASE_URL}/pedidos-online/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao enviar pedido');
+        }
+        
+        const result = await response.json();
+        
+        // Fechar modal
+        closeOrderModal();
+        
+        // Limpar carrinho
+        appState.cart = [];
+        saveCartToStorage();
+        updateCartDisplay();
+        updateProductQuantities();
+        
+        // Mostrar sucesso
+        showSuccess('Pedido enviado com sucesso! Entraremos em contato em breve.');
+        
+    } catch (error) {
+        console.error('Erro ao enviar pedido:', error);
+        showError('Erro ao enviar pedido. Tente novamente.');
+    } finally {
+        showLoading(false);
+    }
 }
 
 // Gerar mensagem do pedido
@@ -375,9 +509,8 @@ function generateOrderMessage() {
 
 // Abrir WhatsApp diretamente
 function openWhatsApp() {
-    const message = `${CONFIG.WHATSAPP_MESSAGE}\n\nGostaria de fazer um pedido de entrega. Pode me enviar o cardápio?`;
-    const whatsappUrl = `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    // Mostrar mensagem informativa em vez de abrir WhatsApp
+    showSuccess('Para fazer um pedido, adicione produtos ao carrinho e clique em "Finalizar Pedido"!');
 }
 
 // Local Storage

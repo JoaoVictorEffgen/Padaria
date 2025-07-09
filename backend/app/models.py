@@ -85,4 +85,35 @@ class SincronizacaoOffline(Base):
     dados_json = Column(Text)  # Dados da operação
     data_criacao = Column(DateTime(timezone=True), server_default=func.now())
     sincronizado = Column(Boolean, default=False)
-    data_sincronizacao = Column(DateTime(timezone=True), nullable=True) 
+    data_sincronizacao = Column(DateTime(timezone=True), nullable=True)
+
+class PedidoOnline(Base):
+    __tablename__ = "pedidos_online"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nome_cliente = Column(String, index=True)
+    telefone = Column(String, index=True)
+    endereco = Column(Text)
+    forma_pagamento = Column(String)  # dinheiro, cartao, pix, transferencia
+    total = Column(Float)
+    status = Column(String, default="pendente")  # pendente, confirmado, preparando, entregando, entregue, cancelado
+    observacoes = Column(Text, nullable=True)
+    data_pedido = Column(DateTime(timezone=True), server_default=func.now())
+    data_confirmacao = Column(DateTime(timezone=True), nullable=True)
+    data_entrega = Column(DateTime(timezone=True), nullable=True)
+    whatsapp_enviado = Column(Boolean, default=False)
+    
+    itens = relationship("ItemPedidoOnline", back_populates="pedido")
+
+class ItemPedidoOnline(Base):
+    __tablename__ = "itens_pedido_online"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    pedido_id = Column(Integer, ForeignKey("pedidos_online.id"))
+    produto_id = Column(Integer, ForeignKey("produtos.id"))
+    quantidade = Column(Integer, default=1)
+    preco_unitario = Column(Float)
+    observacoes = Column(Text, nullable=True)
+    
+    pedido = relationship("PedidoOnline", back_populates="itens")
+    produto = relationship("Produto") 

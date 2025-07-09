@@ -170,4 +170,30 @@ class APIClient:
     # Métodos para Menu Público
     def obter_menu_publico(self, mesa_id: int) -> Dict:
         """Obtém menu público para QR Code"""
-        return self._make_request("GET", f"/menu/{mesa_id}") 
+        return self._make_request("GET", f"/menu/{mesa_id}")
+    
+    # Métodos para Pedidos Online
+    def listar_pedidos_online(self) -> List[Dict]:
+        """Lista todos os pedidos online"""
+        return self._make_request("GET", "/pedidos-online/") or []
+    
+    def obter_pedido_online(self, pedido_id: int) -> Dict:
+        """Obtém detalhes de um pedido online"""
+        return self._make_request("GET", f"/pedidos-online/{pedido_id}")
+    
+    def atualizar_status_pedido_online(self, pedido_id: int, status: str) -> Dict:
+        """Atualiza status de um pedido online"""
+        return self._make_request("PUT", f"/pedidos-online/{pedido_id}/status?status={status}")
+    
+    def criar_pedido_online(self, nome_cliente: str, telefone: str, endereco: str, 
+                           forma_pagamento: str, itens: List[Dict], observacoes: str = None) -> Dict:
+        """Cria um novo pedido online"""
+        data = {
+            "nome_cliente": nome_cliente,
+            "telefone": telefone,
+            "endereco": endereco,
+            "forma_pagamento": forma_pagamento,
+            "itens": itens,
+            "observacoes": observacoes
+        }
+        return self._make_request("POST", "/pedidos-online/", data) 

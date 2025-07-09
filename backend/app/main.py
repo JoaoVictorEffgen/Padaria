@@ -402,20 +402,131 @@ async def read_root():
         </html>
         """)
 
-# Endpoint para pedidos online
-@app.post("/pedidos-online/")
-async def criar_pedido_online(pedido: dict):
+# Endpoints para Pedidos Online
+@app.post("/pedidos-online/", response_model=schemas.PedidoOnline)
+async def criar_pedido_online(pedido: schemas.PedidoOnlineCreate, db: Session = Depends(get_db)):
     """Criar pedido online para entrega"""
     try:
-        # Aqui você pode implementar a lógica para salvar o pedido
-        # Por enquanto, apenas retornamos sucesso
-        return {
-            "success": True,
-            "message": "Pedido recebido com sucesso! Entraremos em contato em breve.",
-            "pedido_id": str(uuid.uuid4())
+        # Calcular total do pedido
+        total = 0
+        for item in pedido.itens:
+            produto = db.query(models.Produto).filter(models.Produto.id == item.produto_id).first()
+            if not produto:
+                raise HTTPException(status_code=404, detail=f"Produto {item.produto_id} não encontrado")
+            if not produto.disponivel:
+                raise HTTPException(status_code=400, detail=f"Produto {produto.nome} não disponível")
+            total += produto.preco * item.quantidade
+        
+        # Criar pedido
+        db_pedido = models.PedidoOnline(
+            nome_cliente=pedido.nome_cliente,
+            telefone=pedido.telefone,
+            endereco=pedido.endereco,
+            forma_pagamento=pedido.forma_pagamento,
+            observacoes=pedido.observacoes,
+            total=total
+        )
+        db.add(db_pedido)
+        db.commit()
+        db.refresh(db_pedido)
+        
+        # Criar itens do pedido
+        for item in pedido.itens:
+            produto = db.query(models.Produto).filter(models.Produto.id == item.produto_id).first()
+            db_item = models.ItemPedidoOnline(
+                pedido_id=db_pedido.id,
+                produto_id=item.produto_id,
+                quantidade=item.quantidade,
+                preco_unitario=produto.preco,
+                observacoes=item.observacoes
+            )
+            db.add(db_item)
+        
+        db.commit()
+        
+        # Preparar dados para WhatsApp
+        pedido_data = {
+            "id": db_pedido.id,
+            "nome_cliente": db_pedido.nome_cliente,
+            "telefone": db_pedido.telefone,
+            "endereco": db_pedido.endereco,
+            "forma_pagamento": db_pedido.forma_pagamento,
+            "total": db_pedido.total,
+            "observacoes": db_pedido.observacoes,
+            "itens": []
         }
+        
+        # Adicionar itens ao pedido_data
+        for item in pedido.itens:
+            produto = db.query(models.Produto).filter(models.Produto.id == item.produto_id).first()
+            pedido_data["itens"].append({
+                "quantidade": item.quantidade,
+                "preco_unitario": produto.preco,
+                "produto": {
+                    "nome": produto.nome
+                }
+            })
+        
+        # Enviar para WhatsApp
+        from .config_whatsapp import whatsapp_service
+        whatsapp_service.enviar_pedido_whatsapp(pedido_data)
+        
+        # Marcar como enviado
+        db_pedido.whatsapp_enviado = True
+        db.commit()
+        
+        return db_pedido
+        
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao processar pedido: {str(e)}")
+
+@app.get("/pedidos-online/", response_model=List[schemas.PedidoOnlineResumo])
+def listar_pedidos_online(db: Session = Depends(get_db)):
+    """Listar todos os pedidos online"""
+    pedidos = db.query(models.PedidoOnline).order_by(models.PedidoOnline.data_pedido.desc()).all()
+    resultado = []
+    for pedido in pedidos:
+        resultado.append(schemas.PedidoOnlineResumo(
+            id=pedido.id,
+            nome_cliente=pedido.nome_cliente,
+            telefone=pedido.telefone,
+            total=pedido.total,
+            status=pedido.status,
+            data_pedido=pedido.data_pedido,
+            quantidade_itens=len(pedido.itens)
+        ))
+    return resultado
+
+@app.get("/pedidos-online/{pedido_id}", response_model=schemas.PedidoOnline)
+def obter_pedido_online(pedido_id: int, db: Session = Depends(get_db)):
+    """Obter detalhes de um pedido online"""
+    pedido = db.query(models.PedidoOnline).filter(models.PedidoOnline.id == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    return pedido
+
+@app.put("/pedidos-online/{pedido_id}/status")
+def atualizar_status_pedido(pedido_id: int, status: str, db: Session = Depends(get_db)):
+    """Atualizar status de um pedido online"""
+    pedido = db.query(models.PedidoOnline).filter(models.PedidoOnline.id == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    
+    status_validos = ["pendente", "confirmado", "preparando", "entregando", "entregue", "cancelado"]
+    if status not in status_validos:
+        raise HTTPException(status_code=400, detail="Status inválido")
+    
+    pedido.status = status
+    
+    # Atualizar timestamps
+    if status == "confirmado" and not pedido.data_confirmacao:
+        pedido.data_confirmacao = datetime.now()
+    elif status == "entregue" and not pedido.data_entrega:
+        pedido.data_entrega = datetime.now()
+    
+    db.commit()
+    return {"message": f"Status do pedido atualizado para {status}"}
 
 # Endpoint para contato
 @app.post("/contato/")

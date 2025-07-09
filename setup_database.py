@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.join(os.getcwd(), "backend"))
 
 from app.database import engine, SessionLocal
-from app.models import Base, Mesa, Produto
+from app.models import Base, Mesa, Produto, PedidoOnline, ItemPedidoOnline
 from app.schemas import MesaCreate, ProdutoCreate
 
 def criar_tabelas():

@@ -61,8 +61,11 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.api_client = APIClient()
         self.comanda_atual = None
+        self.pedido_online_atual = None
         self.init_ui()
         self.setup_timer()
+        # Carregar dados iniciais
+        self.atualizar_dados()
         
     def init_ui(self):
         self.setWindowTitle("Sistema Padaria - Desktop")
@@ -89,6 +92,7 @@ class MainWindow(QMainWindow):
         self.create_comandas_tab()
         self.create_produtos_tab()
         self.create_mesas_tab()
+        self.create_pedidos_online_tab()
         self.create_relatorios_tab()
         
     def create_comandas_tab(self):
@@ -249,6 +253,107 @@ class MainWindow(QMainWindow):
         
         self.tab_widget.addTab(mesas_widget, "Mesas")
         
+    def create_pedidos_online_tab(self):
+        """Cria a aba de pedidos online"""
+        pedidos_widget = QWidget()
+        layout = QHBoxLayout(pedidos_widget)
+        
+        # Painel esquerdo - Lista de pedidos
+        left_panel = QGroupBox("Pedidos Online")
+        left_layout = QVBoxLayout(left_panel)
+        
+        # Botões de ação
+        btn_layout = QHBoxLayout()
+        self.btn_atualizar_pedidos = QPushButton("Atualizar")
+        self.btn_atualizar_pedidos.clicked.connect(self.atualizar_pedidos_online)
+        
+        btn_layout.addWidget(self.btn_atualizar_pedidos)
+        left_layout.addLayout(btn_layout)
+        
+        # Tabela de pedidos
+        self.table_pedidos_online = QTableWidget()
+        self.table_pedidos_online.setColumnCount(7)
+        self.table_pedidos_online.setHorizontalHeaderLabels([
+            "ID", "Cliente", "Telefone", "Total", "Status", "Data", "Ações"
+        ])
+        self.table_pedidos_online.itemSelectionChanged.connect(self.selecionar_pedido_online)
+        left_layout.addWidget(self.table_pedidos_online)
+        
+        # Painel direito - Detalhes do pedido
+        right_panel = QGroupBox("Detalhes do Pedido")
+        right_layout = QVBoxLayout(right_panel)
+        
+        # Informações do pedido
+        info_layout = QGridLayout()
+        info_layout.addWidget(QLabel("Cliente:"), 0, 0)
+        self.lbl_cliente = QLabel("-")
+        info_layout.addWidget(self.lbl_cliente, 0, 1)
+        
+        info_layout.addWidget(QLabel("Telefone:"), 1, 0)
+        self.lbl_telefone = QLabel("-")
+        info_layout.addWidget(self.lbl_telefone, 1, 1)
+        
+        info_layout.addWidget(QLabel("Endereço:"), 2, 0)
+        self.lbl_endereco = QLabel("-")
+        info_layout.addWidget(self.lbl_endereco, 2, 1)
+        
+        info_layout.addWidget(QLabel("Pagamento:"), 3, 0)
+        self.lbl_pagamento = QLabel("-")
+        info_layout.addWidget(self.lbl_pagamento, 3, 1)
+        
+        info_layout.addWidget(QLabel("Status:"), 4, 0)
+        self.lbl_status_pedido = QLabel("-")
+        info_layout.addWidget(self.lbl_status_pedido, 4, 1)
+        
+        info_layout.addWidget(QLabel("Total:"), 5, 0)
+        self.lbl_total_pedido = QLabel("R$ 0,00")
+        self.lbl_total_pedido.setFont(QFont("Arial", 14, QFont.Bold))
+        info_layout.addWidget(self.lbl_total_pedido, 5, 1)
+        
+        right_layout.addLayout(info_layout)
+        
+        # Observações
+        right_layout.addWidget(QLabel("Observações:"))
+        self.txt_observacoes_pedido = QTextEdit()
+        self.txt_observacoes_pedido.setMaximumHeight(80)
+        self.txt_observacoes_pedido.setReadOnly(True)
+        right_layout.addWidget(self.txt_observacoes_pedido)
+        
+        # Tabela de itens
+        right_layout.addWidget(QLabel("Itens do Pedido:"))
+        self.table_itens_pedido = QTableWidget()
+        self.table_itens_pedido.setColumnCount(4)
+        self.table_itens_pedido.setHorizontalHeaderLabels([
+            "Produto", "Quantidade", "Preço Unit.", "Subtotal"
+        ])
+        right_layout.addWidget(self.table_itens_pedido)
+        
+        # Botões de ação do pedido
+        btn_pedido_layout = QHBoxLayout()
+        self.btn_confirmar_pedido = QPushButton("Confirmar Pedido")
+        self.btn_confirmar_pedido.clicked.connect(self.confirmar_pedido)
+        self.btn_preparando_pedido = QPushButton("Em Preparação")
+        self.btn_preparando_pedido.clicked.connect(self.preparando_pedido)
+        self.btn_entregando_pedido = QPushButton("Entregando")
+        self.btn_entregando_pedido.clicked.connect(self.entregando_pedido)
+        self.btn_entregue_pedido = QPushButton("Entregue")
+        self.btn_entregue_pedido.clicked.connect(self.entregue_pedido)
+        
+        btn_pedido_layout.addWidget(self.btn_confirmar_pedido)
+        btn_pedido_layout.addWidget(self.btn_preparando_pedido)
+        btn_pedido_layout.addWidget(self.btn_entregando_pedido)
+        btn_pedido_layout.addWidget(self.btn_entregue_pedido)
+        right_layout.addLayout(btn_pedido_layout)
+        
+        # Adicionar painéis ao layout principal
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.addWidget(left_panel)
+        splitter.addWidget(right_panel)
+        splitter.setSizes([400, 800])
+        layout.addWidget(splitter)
+        
+        self.tab_widget.addTab(pedidos_widget, "Pedidos Online")
+        
     def create_relatorios_tab(self):
         """Cria a aba de relatórios"""
         relatorios_widget = QWidget()
@@ -293,21 +398,22 @@ class MainWindow(QMainWindow):
         """Configura timer para atualização automática"""
         self.timer = QTimer()
         self.timer.timeout.connect(self.atualizar_dados)
-        self.timer.start(5000)  # Atualiza a cada 5 segundos
+        self.timer.start(30000)  # Atualizar a cada 30 segundos
         
     def atualizar_dados(self):
-        """Atualiza todos os dados da interface"""
+        """Atualiza todos os dados"""
         self.atualizar_comandas()
         self.atualizar_produtos()
         self.atualizar_mesas()
+        self.atualizar_pedidos_online()
         self.atualizar_relatorios()
         
     def atualizar_comandas(self):
         """Atualiza a lista de comandas"""
         try:
-            comandas = self.api_client.listar_comandas_abertas()
-            self.table_comandas.setRowCount(len(comandas))
+            comandas = self.api_client.listar_comandas()
             
+            self.table_comandas.setRowCount(len(comandas))
             for i, comanda in enumerate(comandas):
                 self.table_comandas.setItem(i, 0, QTableWidgetItem(str(comanda["id"])))
                 self.table_comandas.setItem(i, 1, QTableWidgetItem(str(comanda["mesa_numero"])))
@@ -315,8 +421,8 @@ class MainWindow(QMainWindow):
                 self.table_comandas.setItem(i, 3, QTableWidgetItem(f"R$ {comanda['total']:.2f}"))
                 self.table_comandas.setItem(i, 4, QTableWidgetItem(str(comanda["quantidade_itens"])))
                 
-                # Botão de ação
-                btn_ver = QPushButton("Ver Detalhes")
+                # Botão para ver detalhes
+                btn_ver = QPushButton("Ver")
                 btn_ver.clicked.connect(lambda checked, c=comanda: self.ver_comanda(c))
                 self.table_comandas.setCellWidget(i, 5, btn_ver)
                 
@@ -327,8 +433,8 @@ class MainWindow(QMainWindow):
         """Atualiza a lista de produtos"""
         try:
             produtos = self.api_client.listar_produtos()
-            self.table_produtos.setRowCount(len(produtos))
             
+            self.table_produtos.setRowCount(len(produtos))
             for i, produto in enumerate(produtos):
                 self.table_produtos.setItem(i, 0, QTableWidgetItem(str(produto["id"])))
                 self.table_produtos.setItem(i, 1, QTableWidgetItem(produto["nome"]))
@@ -343,20 +449,42 @@ class MainWindow(QMainWindow):
         """Atualiza a lista de mesas"""
         try:
             mesas = self.api_client.listar_mesas()
-            self.table_mesas.setRowCount(len(mesas))
             
+            self.table_mesas.setRowCount(len(mesas))
             for i, mesa in enumerate(mesas):
                 self.table_mesas.setItem(i, 0, QTableWidgetItem(str(mesa["id"])))
                 self.table_mesas.setItem(i, 1, QTableWidgetItem(str(mesa["numero"])))
                 self.table_mesas.setItem(i, 2, QTableWidgetItem(mesa["status"]))
                 
-                # Botão de ação
+                # Botão para abrir comanda
                 btn_abrir = QPushButton("Abrir Comanda")
                 btn_abrir.clicked.connect(lambda checked, m=mesa: self.abrir_comanda_mesa(m))
                 self.table_mesas.setCellWidget(i, 3, btn_abrir)
                 
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Erro ao carregar mesas: {e}")
+            
+    def atualizar_pedidos_online(self):
+        """Atualiza a lista de pedidos online"""
+        try:
+            pedidos = self.api_client.listar_pedidos_online()
+            
+            self.table_pedidos_online.setRowCount(len(pedidos))
+            for i, pedido in enumerate(pedidos):
+                self.table_pedidos_online.setItem(i, 0, QTableWidgetItem(str(pedido["id"])))
+                self.table_pedidos_online.setItem(i, 1, QTableWidgetItem(pedido["nome_cliente"]))
+                self.table_pedidos_online.setItem(i, 2, QTableWidgetItem(pedido["telefone"]))
+                self.table_pedidos_online.setItem(i, 3, QTableWidgetItem(f"R$ {pedido['total']:.2f}"))
+                self.table_pedidos_online.setItem(i, 4, QTableWidgetItem(pedido["status"]))
+                self.table_pedidos_online.setItem(i, 5, QTableWidgetItem(str(pedido["data_pedido"])))
+                
+                # Botão para ver detalhes
+                btn_ver = QPushButton("Ver")
+                btn_ver.clicked.connect(lambda checked, p=pedido: self.ver_pedido_online(p))
+                self.table_pedidos_online.setCellWidget(i, 6, btn_ver)
+                
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao carregar pedidos online: {e}")
             
     def atualizar_relatorios(self):
         """Atualiza os relatórios"""
@@ -398,6 +526,13 @@ class MainWindow(QMainWindow):
             comanda_id = int(self.table_comandas.item(current_row, 0).text())
             self.carregar_detalhes_comanda(comanda_id)
             
+    def selecionar_pedido_online(self):
+        """Seleciona um pedido online da lista"""
+        current_row = self.table_pedidos_online.currentRow()
+        if current_row >= 0:
+            pedido_id = int(self.table_pedidos_online.item(current_row, 0).text())
+            self.carregar_detalhes_pedido_online(pedido_id)
+            
     def carregar_detalhes_comanda(self, comanda_id):
         """Carrega detalhes de uma comanda"""
         try:
@@ -421,6 +556,34 @@ class MainWindow(QMainWindow):
                 
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Erro ao carregar comanda: {e}")
+            
+    def carregar_detalhes_pedido_online(self, pedido_id):
+        """Carrega detalhes de um pedido online"""
+        try:
+            pedido = self.api_client.obter_pedido_online(pedido_id)
+            self.pedido_online_atual = pedido
+            
+            self.lbl_cliente.setText(pedido["nome_cliente"])
+            self.lbl_telefone.setText(pedido["telefone"])
+            self.lbl_endereco.setText(pedido["endereco"])
+            self.lbl_pagamento.setText(pedido["forma_pagamento"].upper())
+            self.lbl_status_pedido.setText(pedido["status"])
+            self.lbl_total_pedido.setText(f"R$ {pedido['total']:.2f}")
+            self.txt_observacoes_pedido.setPlainText(pedido.get("observacoes", ""))
+            
+            # Carregar itens
+            itens = pedido["itens"]
+            self.table_itens_pedido.setRowCount(len(itens))
+            
+            for i, item in enumerate(itens):
+                self.table_itens_pedido.setItem(i, 0, QTableWidgetItem(item["produto"]["nome"]))
+                self.table_itens_pedido.setItem(i, 1, QTableWidgetItem(str(item["quantidade"])))
+                self.table_itens_pedido.setItem(i, 2, QTableWidgetItem(f"R$ {item['preco_unitario']:.2f}"))
+                subtotal = item["quantidade"] * item["preco_unitario"]
+                self.table_itens_pedido.setItem(i, 3, QTableWidgetItem(f"R$ {subtotal:.2f}"))
+                
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao carregar pedido online: {e}")
             
     def fechar_comanda(self):
         """Fecha a comanda atual"""
@@ -458,6 +621,17 @@ class MainWindow(QMainWindow):
         self.lbl_status.setText("-")
         self.lbl_total.setText("R$ 0,00")
         self.table_itens.setRowCount(0)
+        
+    def limpar_detalhes_pedido_online(self):
+        """Limpa os detalhes do pedido online"""
+        self.lbl_cliente.setText("-")
+        self.lbl_telefone.setText("-")
+        self.lbl_endereco.setText("-")
+        self.lbl_pagamento.setText("-")
+        self.lbl_status_pedido.setText("-")
+        self.lbl_total_pedido.setText("R$ 0,00")
+        self.txt_observacoes_pedido.clear()
+        self.table_itens_pedido.setRowCount(0)
         
     def cadastrar_produto(self):
         """Cadastra um novo produto"""
@@ -506,6 +680,11 @@ class MainWindow(QMainWindow):
         self.carregar_detalhes_comanda(comanda["id"])
         self.tab_widget.setCurrentIndex(0)  # Vai para aba de comandas
         
+    def ver_pedido_online(self, pedido):
+        """Visualiza detalhes de um pedido online"""
+        self.carregar_detalhes_pedido_online(pedido["id"])
+        self.tab_widget.setCurrentIndex(3)  # Vai para aba de pedidos online
+        
     def abrir_comanda_mesa(self, mesa):
         """Abre comanda para uma mesa"""
         try:
@@ -551,4 +730,62 @@ class MainWindow(QMainWindow):
                     self.atualizar_comandas()
                     
         except Exception as e:
-            QMessageBox.warning(self, "Erro", f"Erro ao adicionar produto: {e}") 
+            QMessageBox.warning(self, "Erro", f"Erro ao adicionar produto: {e}")
+            
+    # Funções para gerenciar pedidos online
+    def confirmar_pedido(self):
+        """Confirma um pedido online"""
+        if not self.pedido_online_atual:
+            QMessageBox.warning(self, "Aviso", "Nenhum pedido selecionado")
+            return
+            
+        try:
+            self.api_client.atualizar_status_pedido_online(self.pedido_online_atual["id"], "confirmado")
+            QMessageBox.information(self, "Sucesso", "Pedido confirmado com sucesso")
+            self.atualizar_pedidos_online()
+            self.carregar_detalhes_pedido_online(self.pedido_online_atual["id"])
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao confirmar pedido: {e}")
+            
+    def preparando_pedido(self):
+        """Marca pedido como em preparação"""
+        if not self.pedido_online_atual:
+            QMessageBox.warning(self, "Aviso", "Nenhum pedido selecionado")
+            return
+            
+        try:
+            self.api_client.atualizar_status_pedido_online(self.pedido_online_atual["id"], "preparando")
+            QMessageBox.information(self, "Sucesso", "Pedido marcado como em preparação")
+            self.atualizar_pedidos_online()
+            self.carregar_detalhes_pedido_online(self.pedido_online_atual["id"])
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao atualizar status: {e}")
+            
+    def entregando_pedido(self):
+        """Marca pedido como entregando"""
+        if not self.pedido_online_atual:
+            QMessageBox.warning(self, "Aviso", "Nenhum pedido selecionado")
+            return
+            
+        try:
+            self.api_client.atualizar_status_pedido_online(self.pedido_online_atual["id"], "entregando")
+            QMessageBox.information(self, "Sucesso", "Pedido marcado como entregando")
+            self.atualizar_pedidos_online()
+            self.carregar_detalhes_pedido_online(self.pedido_online_atual["id"])
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao atualizar status: {e}")
+            
+    def entregue_pedido(self):
+        """Marca pedido como entregue"""
+        if not self.pedido_online_atual:
+            QMessageBox.warning(self, "Aviso", "Nenhum pedido selecionado")
+            return
+            
+        try:
+            self.api_client.atualizar_status_pedido_online(self.pedido_online_atual["id"], "entregue")
+            QMessageBox.information(self, "Sucesso", "Pedido marcado como entregue")
+            self.atualizar_pedidos_online()
+            self.pedido_online_atual = None
+            self.limpar_detalhes_pedido_online()
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao atualizar status: {e}") 
