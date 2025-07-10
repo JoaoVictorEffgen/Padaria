@@ -218,6 +218,15 @@ def marcar_comanda_impressa(comanda_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Comanda marcada como impressa"}
 
+@app.put("/comandas/{comanda_id}/cancelar")
+def cancelar_comanda(comanda_id: int, db: Session = Depends(get_db)):
+    comanda = db.query(models.Comanda).filter(models.Comanda.id == comanda_id).first()
+    if not comanda:
+        raise HTTPException(status_code=404, detail="Comanda não encontrada")
+    comanda.status = "cancelado"
+    db.commit()
+    return {"message": "Comanda cancelada com sucesso"}
+
 # Endpoints para Itens da Comanda
 @app.post("/comandas/{comanda_id}/itens/", response_model=schemas.ItemComanda)
 def adicionar_item_comanda(
@@ -240,6 +249,8 @@ def adicionar_item_comanda(
     
     if not produto.disponivel:
         raise HTTPException(status_code=400, detail="Produto não disponível")
+    
+
     
     # Criar item da comanda
     db_item = models.ItemComanda(
@@ -415,6 +426,7 @@ async def criar_pedido_online(pedido: schemas.PedidoOnlineCreate, db: Session = 
                 raise HTTPException(status_code=404, detail=f"Produto {item.produto_id} não encontrado")
             if not produto.disponivel:
                 raise HTTPException(status_code=400, detail=f"Produto {produto.nome} não disponível")
+
             total += produto.preco * item.quantidade
         
         # Criar pedido
@@ -430,7 +442,7 @@ async def criar_pedido_online(pedido: schemas.PedidoOnlineCreate, db: Session = 
         db.commit()
         db.refresh(db_pedido)
         
-        # Criar itens do pedido
+        # Criar itens do pedido e decrementar estoque
         for item in pedido.itens:
             produto = db.query(models.Produto).filter(models.Produto.id == item.produto_id).first()
             db_item = models.ItemPedidoOnline(
@@ -441,6 +453,7 @@ async def criar_pedido_online(pedido: schemas.PedidoOnlineCreate, db: Session = 
                 observacoes=item.observacoes
             )
             db.add(db_item)
+
         
         db.commit()
         

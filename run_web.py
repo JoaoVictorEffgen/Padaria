@@ -15,9 +15,9 @@ def main():
     print("🍞 Iniciando Sistema Web da Padaria Delícias...")
     print("=" * 50)
     
-    # Configurações do servidor
+    
     host = "0.0.0.0"
-    port = 8000
+    port = 8001
     reload = True
     
     print(f"📍 Servidor rodando em: http://localhost:{port}")

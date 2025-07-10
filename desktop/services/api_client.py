@@ -135,6 +135,10 @@ class APIClient:
             data["garcom_id"] = garcom_id
         return self._make_request("POST", f"/comandas/{comanda_id}/chamar-garcom", data)
     
+    def cancelar_comanda(self, comanda_id: int) -> Dict:
+        """Cancela uma comanda (status = cancelado)"""
+        return self._make_request("PUT", f"/comandas/{comanda_id}/cancelar")
+    
     # Métodos para Garçons
     def listar_garcons(self) -> List[Dict]:
         """Lista todos os garçons"""

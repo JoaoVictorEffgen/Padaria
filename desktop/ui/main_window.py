@@ -2,11 +2,12 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTabWidget, QTableWidget, QTableWidgetItem, QPushButton,
                              QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox,
                              QTextEdit, QMessageBox, QGroupBox, QGridLayout, QSplitter,
-                             QDialog, QFormLayout)
+                             QDialog, QFormLayout, QHeaderView, QScrollArea)
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QFont, QIcon
 from ..services.api_client import APIClient
 import json
+from .charts_widget import ChartsWidget
 
 class AdicionarProdutoDialog(QDialog):
     """Diálogo para adicionar produto à comanda"""
@@ -161,10 +162,13 @@ class MainWindow(QMainWindow):
         self.btn_fechar_comanda.clicked.connect(self.fechar_comanda)
         self.btn_finalizar_comanda = QPushButton("Finalizar Pagamento")
         self.btn_finalizar_comanda.clicked.connect(self.finalizar_comanda)
+        self.btn_cancelar_comanda = QPushButton("Cancelar Comanda")
+        self.btn_cancelar_comanda.clicked.connect(self.cancelar_comanda)
         
         btn_comanda_layout.addWidget(self.btn_adicionar_produto)
         btn_comanda_layout.addWidget(self.btn_fechar_comanda)
         btn_comanda_layout.addWidget(self.btn_finalizar_comanda)
+        btn_comanda_layout.addWidget(self.btn_cancelar_comanda)
         right_layout.addLayout(btn_comanda_layout)
         
         # Adicionar painéis ao layout principal
@@ -338,11 +342,14 @@ class MainWindow(QMainWindow):
         self.btn_entregando_pedido.clicked.connect(self.entregando_pedido)
         self.btn_entregue_pedido = QPushButton("Entregue")
         self.btn_entregue_pedido.clicked.connect(self.entregue_pedido)
+        self.btn_cancelar_pedido = QPushButton("Cancelar Pedido")
+        self.btn_cancelar_pedido.clicked.connect(self.cancelar_pedido_online)
         
         btn_pedido_layout.addWidget(self.btn_confirmar_pedido)
         btn_pedido_layout.addWidget(self.btn_preparando_pedido)
         btn_pedido_layout.addWidget(self.btn_entregando_pedido)
         btn_pedido_layout.addWidget(self.btn_entregue_pedido)
+        btn_pedido_layout.addWidget(self.btn_cancelar_pedido)
         right_layout.addLayout(btn_pedido_layout)
         
         # Adicionar painéis ao layout principal
@@ -378,6 +385,10 @@ class MainWindow(QMainWindow):
         stats_layout.addWidget(self.lbl_faturamento_dia, 3, 1)
         
         layout.addWidget(stats_group)
+        
+        # Gráficos
+        self.charts_widget = ChartsWidget(self.api_client)
+        layout.addWidget(self.charts_widget)
         
         # Histórico de comandas
         historico_group = QGroupBox("Histórico de Comandas")
@@ -501,9 +512,27 @@ class MainWindow(QMainWindow):
             self.lbl_comandas_fechadas.setText(str(fechadas))
             self.lbl_faturamento_dia.setText(f"R$ {faturamento:.2f}")
             
-            # Histórico
-            self.table_historico.setRowCount(len(comandas))
-            for i, comanda in enumerate(comandas):
+            # Atualizar gráficos
+            if hasattr(self, 'charts_widget'):
+                self.charts_widget.atualizar_graficos()
+            
+            # Histórico - mostrar apenas comandas do dia
+            from datetime import datetime
+            hoje = datetime.now().date()
+            comandas_do_dia = []
+            for c in comandas:
+                data_abertura = c["data_abertura"]
+                if isinstance(data_abertura, str):
+                    if 'T' in data_abertura:
+                        data = datetime.fromisoformat(data_abertura.replace('Z', '+00:00')).date()
+                    else:
+                        data = datetime.strptime(data_abertura, '%Y-%m-%d').date()
+                else:
+                    data = data_abertura.date()
+                if data == hoje:
+                    comandas_do_dia.append(c)
+            self.table_historico.setRowCount(len(comandas_do_dia))
+            for i, comanda in enumerate(comandas_do_dia):
                 self.table_historico.setItem(i, 0, QTableWidgetItem(str(comanda["id"])))
                 self.table_historico.setItem(i, 1, QTableWidgetItem(str(comanda["mesa_numero"])))
                 self.table_historico.setItem(i, 2, QTableWidgetItem(comanda["status"]))
@@ -789,3 +818,31 @@ class MainWindow(QMainWindow):
             self.limpar_detalhes_pedido_online()
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Erro ao atualizar status: {e}") 
+
+    def cancelar_comanda(self):
+        if not hasattr(self, 'comanda_atual') or not self.comanda_atual:
+            QMessageBox.warning(self, "Atenção", "Selecione uma comanda para cancelar.")
+            return
+        confirm = QMessageBox.question(self, "Cancelar Comanda", "Tem certeza que deseja cancelar esta comanda?", QMessageBox.Yes | QMessageBox.No)
+        if confirm == QMessageBox.Yes:
+            try:
+                self.api_client.cancelar_comanda(self.comanda_atual["id"])
+                QMessageBox.information(self, "Sucesso", "Comanda cancelada com sucesso.")
+                self.atualizar_comandas()
+                self.limpar_detalhes_comanda()
+            except Exception as e:
+                QMessageBox.warning(self, "Erro", f"Erro ao cancelar comanda: {e}")
+
+    def cancelar_pedido_online(self):
+        if not hasattr(self, 'pedido_online_atual') or not self.pedido_online_atual:
+            QMessageBox.warning(self, "Atenção", "Selecione um pedido para cancelar.")
+            return
+        confirm = QMessageBox.question(self, "Cancelar Pedido", "Tem certeza que deseja cancelar este pedido?", QMessageBox.Yes | QMessageBox.No)
+        if confirm == QMessageBox.Yes:
+            try:
+                self.api_client.atualizar_status_pedido_online(self.pedido_online_atual["id"], "cancelado")
+                QMessageBox.information(self, "Sucesso", "Pedido cancelado com sucesso.")
+                self.atualizar_pedidos_online()
+                self.limpar_detalhes_pedido_online()
+            except Exception as e:
+                QMessageBox.warning(self, "Erro", f"Erro ao cancelar pedido: {e}") 
