@@ -36,6 +36,7 @@ class Comanda(Base):
     data_fechamento = Column(DateTime(timezone=True), nullable=True)
     data_impressao = Column(DateTime(timezone=True), nullable=True)
     observacoes = Column(Text, nullable=True)  # Observações especiais
+    chamando_garcom = Column(Boolean, default=False)  # Novo campo
     
     mesa = relationship("Mesa", back_populates="comandas")
     itens = relationship("ItemComanda", back_populates="comanda")

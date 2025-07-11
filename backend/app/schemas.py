@@ -57,6 +57,7 @@ class ItemComanda(ItemComandaBase):
 class ComandaBase(BaseModel):
     mesa_id: int
     observacoes: Optional[str] = None
+    chamando_garcom: Optional[bool] = False
 
 class ComandaCreate(ComandaBase):
     pass
@@ -82,6 +83,7 @@ class ComandaResumo(BaseModel):
     total: float
     data_abertura: datetime
     quantidade_itens: int
+    chamando_garcom: Optional[bool] = False
     
     class Config:
         from_attributes = True

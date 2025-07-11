@@ -317,6 +317,10 @@ def chamar_garcom(comanda_id: int, garcom_id: int = None, db: Session = Depends(
     if not comanda:
         raise HTTPException(status_code=404, detail="Comanda não encontrada")
     
+    # Marcar flag de chamada de garçom
+    comanda.chamando_garcom = True
+    db.commit()
+    
     # Registrar atendimento do garçom
     if garcom_id:
         atendimento = models.AtendimentoGarcom(
@@ -328,6 +332,15 @@ def chamar_garcom(comanda_id: int, garcom_id: int = None, db: Session = Depends(
         db.commit()
     
     return {"message": f"Garçom chamado para a mesa {comanda.mesa.numero}"}
+
+@app.put("/comandas/{comanda_id}/atender-garcom")
+def atender_garcom(comanda_id: int, db: Session = Depends(get_db)):
+    comanda = db.query(models.Comanda).filter(models.Comanda.id == comanda_id).first()
+    if not comanda:
+        raise HTTPException(status_code=404, detail="Comanda não encontrada")
+    comanda.chamando_garcom = False
+    db.commit()
+    return {"message": f"Atendimento do garçom registrado para a mesa {comanda.mesa_id}"}
 
 # Endpoints para Sincronização Offline
 @app.post("/sincronizacao/")

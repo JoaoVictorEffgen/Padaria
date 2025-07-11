@@ -2,11 +2,14 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTabWidget, QTableWidget, QTableWidgetItem, QPushButton,
                              QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox,
                              QTextEdit, QMessageBox, QGroupBox, QGridLayout, QSplitter,
-                             QDialog, QFormLayout, QHeaderView, QScrollArea)
+                             QDialog, QFormLayout, QHeaderView, QScrollArea, QFileDialog)
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QFont, QIcon
 from ..services.api_client import APIClient
 import json
+from datetime import datetime, date
+import csv
+import os
 from .charts_widget import ChartsWidget
 
 class AdicionarProdutoDialog(QDialog):
@@ -63,8 +66,11 @@ class MainWindow(QMainWindow):
         self.api_client = APIClient()
         self.comanda_atual = None
         self.pedido_online_atual = None
+        self.ultima_data = None
         self.init_ui()
         self.setup_timer()
+        # Verificar se é um novo dia e limpar se necessário
+        self.verificar_novo_dia()
         # Carregar dados iniciais
         self.atualizar_dados()
         
@@ -365,6 +371,18 @@ class MainWindow(QMainWindow):
         """Cria a aba de relatórios"""
         relatorios_widget = QWidget()
         layout = QVBoxLayout(relatorios_widget)
+        
+        # Botões de ação
+        btn_layout = QHBoxLayout()
+        self.btn_limpar_telas = QPushButton("Limpar Todas as Telas")
+        self.btn_limpar_telas.clicked.connect(self.limpar_todas_telas)
+        self.btn_download_relatorio = QPushButton("Baixar Relatório")
+        self.btn_download_relatorio.clicked.connect(self.baixar_relatorio)
+        
+        btn_layout.addWidget(self.btn_limpar_telas)
+        btn_layout.addWidget(self.btn_download_relatorio)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
         
         # Estatísticas
         stats_group = QGroupBox("Estatísticas")
@@ -846,3 +864,142 @@ class MainWindow(QMainWindow):
                 self.limpar_detalhes_pedido_online()
             except Exception as e:
                 QMessageBox.warning(self, "Erro", f"Erro ao cancelar pedido: {e}") 
+    
+    def verificar_novo_dia(self):
+        """Verifica se é um novo dia e limpa as telas se necessário"""
+        data_atual = date.today()
+        
+        if self.ultima_data is None:
+            # Primeira execução
+            self.ultima_data = data_atual
+        elif self.ultima_data != data_atual:
+            # Novo dia detectado
+            self.limpar_todas_telas()
+            self.ultima_data = data_atual
+            QMessageBox.information(self, "Novo Dia", "Detectado novo dia. Todas as telas foram limpas.")
+    
+    def limpar_todas_telas(self):
+        """Limpa todas as telas, tabelas e formulários"""
+        # Limpar detalhes de comanda
+        self.comanda_atual = None
+        self.limpar_detalhes_comanda()
+        if hasattr(self, 'table_comandas'):
+            self.table_comandas.setRowCount(0)
+        
+        # Limpar detalhes de pedido online
+        self.pedido_online_atual = None
+        self.limpar_detalhes_pedido_online()
+        if hasattr(self, 'table_pedidos_online'):
+            self.table_pedidos_online.setRowCount(0)
+        
+        # Limpar formulário de produto
+        self.limpar_form_produto()
+        if hasattr(self, 'table_produtos'):
+            self.table_produtos.setRowCount(0)
+        
+        # Limpar formulário de mesa
+        if hasattr(self, 'spin_numero_mesa'):
+            self.spin_numero_mesa.setValue(1)
+        if hasattr(self, 'table_mesas'):
+            self.table_mesas.setRowCount(0)
+        
+        # Limpar histórico de comandas
+        if hasattr(self, 'table_historico'):
+            self.table_historico.setRowCount(0)
+        
+        # Limpar observações de pedido online
+        if hasattr(self, 'txt_observacoes_pedido'):
+            self.txt_observacoes_pedido.clear()
+        
+        # Limpar labels de estatísticas
+        if hasattr(self, 'lbl_total_comandas'):
+            self.lbl_total_comandas.setText("0")
+        if hasattr(self, 'lbl_comandas_abertas'):
+            self.lbl_comandas_abertas.setText("0")
+        if hasattr(self, 'lbl_comandas_fechadas'):
+            self.lbl_comandas_fechadas.setText("0")
+        if hasattr(self, 'lbl_faturamento_dia'):
+            self.lbl_faturamento_dia.setText("R$ 0,00")
+        
+        # Limpar gráficos
+        if hasattr(self, 'charts_widget'):
+            self.charts_widget.limpar_graficos() if hasattr(self.charts_widget, 'limpar_graficos') else None
+        
+        QMessageBox.information(self, "Limpeza", "Todas as telas foram limpas com sucesso.")
+    
+    def baixar_relatorio(self):
+        """Baixa relatório em formato CSV"""
+        try:
+            # Obter dados para o relatório
+            comandas = self.api_client.listar_comandas()
+            pedidos_online = self.api_client.listar_pedidos_online()
+            produtos = self.api_client.listar_produtos()
+            
+            # Solicitar local para salvar
+            filename, _ = QFileDialog.getSaveFileName(
+                self, 
+                "Salvar Relatório", 
+                f"relatorio_padaria_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                "Arquivos CSV (*.csv)"
+            )
+            
+            if filename:
+                with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    
+                    # Cabeçalho
+                    writer.writerow(['RELATÓRIO PADARIA - ' + datetime.now().strftime('%d/%m/%Y %H:%M:%S')])
+                    writer.writerow([])
+                    
+                    # Estatísticas gerais
+                    writer.writerow(['ESTATÍSTICAS GERAIS'])
+                    writer.writerow(['Total de Comandas', len(comandas)])
+                    writer.writerow(['Comandas Abertas', len([c for c in comandas if c['status'] == 'aberta'])])
+                    writer.writerow(['Comandas Fechadas', len([c for c in comandas if c['status'] == 'fechada'])])
+                    writer.writerow(['Comandas Canceladas', len([c for c in comandas if c['status'] == 'cancelada'])])
+                    writer.writerow(['Total de Pedidos Online', len(pedidos_online)])
+                    writer.writerow(['Faturamento Total', f"R$ {sum([c['total'] for c in comandas if c['status'] == 'fechada']):.2f}"])
+                    writer.writerow([])
+                    
+                    # Comandas
+                    writer.writerow(['COMANDA', 'MESA', 'STATUS', 'TOTAL', 'ITENS', 'DATA ABERTURA', 'DATA FECHAMENTO'])
+                    for comanda in comandas:
+                        writer.writerow([
+                            comanda['id'],
+                            comanda['mesa_numero'],
+                            comanda['status'],
+                            f"R$ {comanda['total']:.2f}",
+                            comanda['quantidade_itens'],
+                            comanda['data_abertura'],
+                            comanda.get('data_fechamento', '')
+                        ])
+                    writer.writerow([])
+                    
+                    # Pedidos Online
+                    writer.writerow(['PEDIDO ONLINE', 'CLIENTE', 'TELEFONE', 'STATUS', 'TOTAL', 'ITENS', 'DATA PEDIDO'])
+                    for pedido in pedidos_online:
+                        writer.writerow([
+                            pedido['id'],
+                            pedido['nome_cliente'],
+                            pedido['telefone'],
+                            pedido['status'],
+                            f"R$ {pedido['total']:.2f}",
+                            pedido['quantidade_itens'],
+                            pedido['data_pedido']
+                        ])
+                    writer.writerow([])
+                    
+                    # Produtos
+                    writer.writerow(['PRODUTO', 'CATEGORIA', 'PREÇO', 'DESCRIÇÃO'])
+                    for produto in produtos:
+                        writer.writerow([
+                            produto['nome'],
+                            produto['categoria'],
+                            f"R$ {produto['preco']:.2f}",
+                            produto.get('descricao', '')
+                        ])
+                
+                QMessageBox.information(self, "Sucesso", f"Relatório salvo com sucesso em:\n{filename}")
+                
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao gerar relatório: {e}") 
