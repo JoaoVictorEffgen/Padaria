@@ -62,15 +62,43 @@ void _iniciarVerificacaoStatus() {
 
 // Verificar se comanda foi finalizada
 Future<void> _verificarStatusComanda() async {
-  final comandaAtualizada = await ApiService.getComanda(_comandaAtual!.id);
-  
-  if (comandaAtualizada.status == "fechada" && 
-      _comandaAtual!.status != "fechada") {
-    // Comanda finalizada no desktop
+  final comandaId = _comandaAtual?.id;
+  if (comandaId == null) return;
+
+  // Busca status resumido da comanda
+  final status = await ApiService.getStatusComanda(comandaId);
+
+  if (status == null) return;
+
+  if (status['status_comanda'] == "fechada") {
     _comandaAtual = null;
-    _error = "Comanda finalizada no caixa";
+    _mensagemStatus = "Comanda finalizada no caixa";
     notifyListeners();
+    return;
   }
+
+  // Mensagem geral
+  switch (status['status_geral_itens']) {
+    case "pronto":
+      _mensagemStatus = "Seu pedido está pronto!";
+      break;
+    case "preparando":
+      _mensagemStatus = "Seu pedido está sendo preparado";
+      break;
+    case "pendente":
+      _mensagemStatus = "Pedido recebido, aguardando preparo";
+      break;
+    case "parcial":
+      _mensagemStatus = "Parte do seu pedido já está pronta!";
+      break;
+    default:
+      _mensagemStatus = "Aguardando atualização do pedido";
+  }
+
+  // (Opcional) Você pode guardar status dos itens para mostrar na interface
+  // status['itens'] é uma lista de {produto, status}
+
+  notifyListeners();
 }
 ```
 
@@ -239,3 +267,240 @@ color: Colors.green, // Cor da tela de finalização
 3. **Histórico de comandas** no mobile
 4. **Modo offline** com sincronização posterior
 5. **Múltiplas mesas** por dispositivo 
+
+---
+
+## 1. Backend: Adicionar status "reservada" e endpoints
+
+- Adicionar o status "reservada" no modelo Mesa.
+- Criar endpoints para reservar e desreservar uma mesa.
+
+## 2. Frontend Web: Interface de reserva
+
+- Adicionar uma seção/listagem de mesas na interface web.
+- Permitir ao usuário clicar em "Reservar" (ou "Cancelar Reserva") para cada mesa.
+- Exibir o status da mesa (livre, ocupada, reservada).
+
+---
+
+### Começando pelo backend:
+
+#### a) Adicionar status "reservada" no modelo Mesa
+
+No arquivo `models.py`, altere o comentário do campo status para incluir "reservada":
+```python
+status = Column(String, default="livre")  # livre, ocupada, reservada
+```
+
+#### b) Criar endpoints para reservar/desreservar mesa
+
+No arquivo `main.py` do backend, adicione:
+
+```python
+from fastapi import Path
+
+@app.put("/mesas/{mesa_id}/reservar")
+def reservar_mesa(mesa_id: int = Path(...), db: Session = Depends(get_db)):
+    mesa = db.query(models.Mesa).filter(models.Mesa.id == mesa_id).first()
+    if not mesa:
+        raise HTTPException(status_code=404, detail="Mesa não encontrada")
+    if mesa.status == "ocupada":
+        raise HTTPException(status_code=400, detail="Mesa já está ocupada")
+    mesa.status = "reservada"
+    db.commit()
+    return {"message": "Mesa reservada com sucesso"}
+
+@app.put("/mesas/{mesa_id}/liberar")
+def liberar_mesa(mesa_id: int = Path(...), db: Session = Depends(get_db)):
+    mesa = db.query(models.Mesa).filter(models.Mesa.id == mesa_id).first()
+    if not mesa:
+        raise HTTPException(status_code=404, detail="Mesa não encontrada")
+    mesa.status = "livre"
+    db.commit()
+    return {"message": "Mesa liberada com sucesso"}
+```
+
+---
+
+### Depois, no frontend:
+
+- Adicionar uma seção de mesas (ex: abaixo do cardápio).
+- Listar todas as mesas e seus status.
+- Botão para reservar/liberar mesa, conforme o status.
+
+Se quiser, posso já aplicar as mudanças no backend para você! Confirma que posso seguir com a implementação dos endpoints de reserva/liberação? 
+
+---
+
+## 2. Flutter: Provider e Widget para Status da Comanda
+
+### a) No seu `ComandaProvider` (ou similar):
+
+Adicione um campo para a mensagem de status:
+```dart
+String? _mensagemStatus;
+String? get mensagemStatus => _mensagemStatus;
+```
+
+Adapte o método de verificação de status para buscar o novo endpoint:
+```dart
+Future<void> _verificarStatusComanda() async {
+  final comandaId = _comandaAtual?.id;
+  if (comandaId == null) return;
+
+  // Busca status resumido da comanda
+  final status = await ApiService.getStatusComanda(comandaId);
+
+  if (status == null) return;
+
+  if (status['status_comanda'] == "fechada") {
+    _comandaAtual = null;
+    _mensagemStatus = "Comanda finalizada no caixa";
+    notifyListeners();
+    return;
+  }
+
+  // Mensagem geral
+  switch (status['status_geral_itens']) {
+    case "pronto":
+      _mensagemStatus = "Seu pedido está pronto!";
+      break;
+    case "preparando":
+      _mensagemStatus = "Seu pedido está sendo preparado";
+      break;
+    case "pendente":
+      _mensagemStatus = "Pedido recebido, aguardando preparo";
+      break;
+    case "parcial":
+      _mensagemStatus = "Parte do seu pedido já está pronta!";
+      break;
+    default:
+      _mensagemStatus = "Aguardando atualização do pedido";
+  }
+
+  // (Opcional) Você pode guardar status dos itens para mostrar na interface
+  // status['itens'] é uma lista de {produto, status}
+
+  notifyListeners();
+}
+```
+
+No seu `ApiService`:
+```dart
+static Future<Map<String, dynamic>?> getStatusComanda(int comandaId) async {
+  final response = await http.get(Uri.parse('$baseUrl/comandas/$comandaId/status'));
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  }
+  return null;
+}
+```
+
+### b) Exemplo de Widget para mostrar o status:
+
+```dart
+Consumer<ComandaProvider>(
+  builder: (context, provider, _) {
+    if (provider.mensagemStatus != null) {
+      return Card(
+        color: Colors.amber[50],
+        margin: EdgeInsets.all(16),
+        child: ListTile(
+          leading: Icon(Icons.info, color: Colors.orange),
+          title: Text(provider.mensagemStatus!),
+        ),
+      );
+    }
+    return SizedBox.shrink();
+  },
+)
+```
+
+Se quiser mostrar o status de cada item:
+```dart
+if (provider.statusItens != null) ...[
+  for (final item in provider.statusItens!)
+    ListTile(
+      title: Text(item['produto']),
+      trailing: Text(item['status']),
+    ),
+]
+```
+
+---
+
+Se precisar do código completo para Flutter, me diga qual estrutura você usa (Provider, Bloc, etc.) e se quer a tela de status detalhada ou só um resumo!  
+Se quiser, posso te ajudar a testar o endpoint do backend também. 
+
+---
+
+## 1. Teste do Endpoint `/comandas/{comanda_id}/status`
+
+Aqui está um exemplo de teste em Python para você rodar e ver a resposta do backend:
+
+```python
+import requests
+
+BASE_URL = "http://localhost:8000"  # ajuste se necessário
+COMANDA_ID = 1  # coloque aqui o ID de uma comanda existente
+
+def testar_status_comanda():
+    url = f"{BASE_URL}/comandas/{COMANDA_ID}/status"
+    resp = requests.get(url)
+    print("Status HTTP:", resp.status_code)
+    print("Resposta JSON:")
+    print(resp.json())
+
+if __name__ == "__main__":
+    testar_status_comanda()
+```
+
+- Troque o `COMANDA_ID` para um ID válido de comanda aberta no seu sistema.
+- Rode o script com `python nome_do_arquivo.py`.
+- Você deve ver um JSON parecido com:
+  ```json
+  {
+    "comanda_id": 1,
+    "mesa_numero": 5,
+    "status_comanda": "aberta",
+    "status_geral_itens": "preparando",
+    "itens": [
+      {"produto": "Café", "status": "pronto"},
+      {"produto": "Pão", "status": "preparando"}
+    ]
+  }
+  ```
+
+Se o resultado for esse, o backend está pronto para o mobile consumir!
+
+---
+
+## 2. Exemplo de Tela Resumida no Flutter
+
+No Flutter, basta mostrar a mensagem principal (como já sugerido):
+
+```dart
+Consumer<ComandaProvider>(
+  builder: (context, provider, _) {
+    if (provider.mensagemStatus != null) {
+      return Card(
+        color: Colors.amber[50],
+        margin: EdgeInsets.all(16),
+        child: ListTile(
+          leading: Icon(Icons.info, color: Colors.orange),
+          title: Text(provider.mensagemStatus!),
+        ),
+      );
+    }
+    return SizedBox.shrink();
+  },
+)
+```
+
+Se quiser, pode colocar esse widget no topo da tela da comanda/pedido.
+
+---
+
+Se rodar o teste do backend e der tudo certo, seu app mobile já pode consumir esse status!  
+Se quiser, posso te ajudar a criar um teste automatizado para rodar sempre que quiser validar o backend.  
+Me avise se precisar de mais algum ajuste! 

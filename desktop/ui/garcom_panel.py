@@ -1,14 +1,18 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, 
                              QTableWidgetItem, QPushButton, QLabel, QGroupBox,
-                             QComboBox, QHeaderView, QMessageBox, QTimer)
+                             QComboBox, QHeaderView, QMessageBox, QDialog)
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtGui import QFont, QColor, QPalette
+from PyQt5.QtMultimedia import QSound
 from ..services.api_client import APIClient
 
 class GarcomPanel(QWidget):
     def __init__(self, api_client: APIClient):
         super().__init__()
         self.api_client = api_client
+        self.chamada_alerta_widget = None
+        self.chamada_alerta_sound = None
+        self.chamada_comanda_id = None
         self.init_ui()
         self.setup_timer()
         
@@ -83,7 +87,7 @@ class GarcomPanel(QWidget):
         self.timer.start(10000)  # Atualiza a cada 10 segundos
         
     def atualizar_comandas(self):
-        """Atualiza a lista de comandas"""
+        """Atualiza a lista de comandas e exibe alerta de chamada de garçom se necessário"""
         try:
             comandas = self.api_client.listar_comandas()
             
@@ -95,6 +99,13 @@ class GarcomPanel(QWidget):
                 comandas = [c for c in comandas if c["status"] in ["aberta", "impressa"]]
             elif filtro == "Aguardando Pagamento":
                 comandas = [c for c in comandas if c["status"] == "aguardando_pagamento"]
+            
+            # Verificar se há chamada de garçom
+            chamada = next((c for c in comandas if c.get("chamando_garcom")), None)
+            if chamada:
+                self.exibir_alerta_chamada(chamada)
+            else:
+                self.ocultar_alerta_chamada()
             
             self.table_comandas.setRowCount(len(comandas))
             
@@ -219,3 +230,50 @@ class GarcomPanel(QWidget):
             
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Erro ao carregar detalhes: {e}") 
+
+    def exibir_alerta_chamada(self, comanda):
+        """Exibe alerta visual e sonoro de chamada de garçom"""
+        if self.chamada_alerta_widget:
+            # Já está exibindo
+            return
+        self.chamada_comanda_id = comanda["id"]
+        self.chamada_alerta_widget = QDialog(self)
+        self.chamada_alerta_widget.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        self.chamada_alerta_widget.setModal(False)
+        palette = self.chamada_alerta_widget.palette()
+        palette.setColor(QPalette.Window, QColor("#ff4444"))
+        self.chamada_alerta_widget.setPalette(palette)
+        self.chamada_alerta_widget.setAutoFillBackground(True)
+        layout = QVBoxLayout()
+        label = QLabel(f"MESA {comanda['mesa_numero']} CHAMANDO GARÇOM!")
+        label.setFont(QFont("Arial", 36, QFont.Bold))
+        label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(label)
+        btn_atender = QPushButton("Atender chamada")
+        btn_atender.setFont(QFont("Arial", 20, QFont.Bold))
+        btn_atender.clicked.connect(self.atender_chamada_garcom)
+        layout.addWidget(btn_atender)
+        self.chamada_alerta_widget.setLayout(layout)
+        self.chamada_alerta_widget.resize(600, 200)
+        self.chamada_alerta_widget.show()
+        # Som de alerta
+        self.chamada_alerta_sound = QSound("alerta.wav")
+        self.chamada_alerta_sound.setLoops(QSound.Infinite)
+        self.chamada_alerta_sound.play()
+    def ocultar_alerta_chamada(self):
+        if self.chamada_alerta_widget:
+            self.chamada_alerta_widget.close()
+            self.chamada_alerta_widget = None
+        if self.chamada_alerta_sound:
+            self.chamada_alerta_sound.stop()
+            self.chamada_alerta_sound = None
+        self.chamada_comanda_id = None
+    def atender_chamada_garcom(self):
+        """Envia requisição para atender chamada de garçom e oculta alerta"""
+        if self.chamada_comanda_id:
+            try:
+                self.api_client._make_request("PUT", f"/comandas/{self.chamada_comanda_id}/atender-garcom")
+            except Exception as e:
+                QMessageBox.warning(self, "Erro", f"Erro ao atender chamada: {e}")
+        self.ocultar_alerta_chamada()
+        self.atualizar_comandas() 

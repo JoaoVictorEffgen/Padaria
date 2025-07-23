@@ -8,7 +8,7 @@ class Mesa(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     numero = Column(Integer, unique=True, index=True)
-    status = Column(String, default="livre")  # livre, ocupada
+    status = Column(String, default="livre")  # livre, ocupada, reservada
     qr_code = Column(String, nullable=True)  # URL do QR Code
     
     comandas = relationship("Comanda", back_populates="mesa")

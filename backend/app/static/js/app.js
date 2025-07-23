@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
     setupEventListeners();
     loadProducts();
+    loadMesas();
 });
 
 // Inicializar aplicação
@@ -96,6 +97,152 @@ async function loadProducts() {
         showError('Erro ao carregar produtos. Tente novamente.');
     } finally {
         showLoading(false);
+    }
+}
+
+// Carregar mesas da API
+async function loadMesas() {
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/mesas/`);
+        if (!response.ok) throw new Error('Erro ao carregar mesas');
+        
+        const mesas = await response.json();
+        renderMesas(mesas);
+    } catch (error) {
+        console.error('Erro ao carregar mesas:', error);
+        showError('Erro ao carregar mesas. Tente novamente.');
+    }
+}
+
+// Renderizar mesas
+function renderMesas(mesas) {
+    const mesasGrid = document.getElementById('mesasGrid');
+    if (!mesasGrid) return;
+    
+    mesasGrid.innerHTML = '';
+    
+    if (mesas.length === 0) {
+        mesasGrid.innerHTML = `
+            <div class="no-mesas">
+                <i class="fas fa-table"></i>
+                <h3>Nenhuma mesa disponível</h3>
+                <p>Entre em contato conosco para mais informações</p>
+            </div>
+        `;
+        return;
+    }
+    
+    mesas.forEach(mesa => {
+        const mesaCard = createMesaCard(mesa);
+        mesasGrid.appendChild(mesaCard);
+    });
+}
+
+// Criar card de mesa
+function createMesaCard(mesa) {
+    const card = document.createElement('div');
+    card.className = `mesa-card ${mesa.status}`;
+    
+    // Ícone baseado no status
+    const statusIcons = {
+        'livre': 'fas fa-check-circle',
+        'ocupada': 'fas fa-times-circle',
+        'reservada': 'fas fa-clock'
+    };
+    
+    const icon = statusIcons[mesa.status] || 'fas fa-table';
+    
+    // Texto do status
+    const statusTexts = {
+        'livre': 'LIVRE',
+        'ocupada': 'OCUPADA',
+        'reservada': 'RESERVADA'
+    };
+    
+    const statusText = statusTexts[mesa.status] || mesa.status.toUpperCase();
+    
+    // Botão baseado no status
+    let actionButton = '';
+    if (mesa.status === 'livre') {
+        actionButton = `
+            <button class="mesa-btn reservar" onclick="reservarMesa(${mesa.id})">
+                <i class="fas fa-bookmark"></i>
+                Reservar
+            </button>
+        `;
+    } else if (mesa.status === 'reservada') {
+        actionButton = `
+            <button class="mesa-btn liberar" onclick="liberarMesa(${mesa.id})">
+                <i class="fas fa-unlock"></i>
+                Liberar
+            </button>
+        `;
+    } else {
+        actionButton = `
+            <button class="mesa-btn" disabled>
+                <i class="fas fa-ban"></i>
+                Indisponível
+            </button>
+        `;
+    }
+    
+    card.innerHTML = `
+        <div class="mesa-icon">
+            <i class="${icon}"></i>
+        </div>
+        <div class="mesa-numero">Mesa ${mesa.numero}</div>
+        <div class="mesa-status">${statusText}</div>
+        <div class="mesa-actions">
+            ${actionButton}
+        </div>
+    `;
+    
+    return card;
+}
+
+// Reservar mesa
+async function reservarMesa(mesaId) {
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/mesas/${mesaId}/reservar`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Erro ao reservar mesa');
+        }
+        
+        showSuccess('Mesa reservada com sucesso!');
+        loadMesas(); // Recarregar mesas
+    } catch (error) {
+        console.error('Erro ao reservar mesa:', error);
+        showError(error.message || 'Erro ao reservar mesa. Tente novamente.');
+    }
+}
+
+// Liberar mesa
+async function liberarMesa(mesaId) {
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/mesas/${mesaId}/liberar`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Erro ao liberar mesa');
+        }
+        
+        showSuccess('Mesa liberada com sucesso!');
+        loadMesas(); // Recarregar mesas
+    } catch (error) {
+        console.error('Erro ao liberar mesa:', error);
+        showError(error.message || 'Erro ao liberar mesa. Tente novamente.');
     }
 }
 

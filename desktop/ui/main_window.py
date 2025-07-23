@@ -12,6 +12,60 @@ import csv
 import os
 from .charts_widget import ChartsWidget
 
+class ConfiguracaoMesasDialog(QDialog):
+    """Diálogo para configurar o número de mesas no início"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.numero_mesas = 0
+        self.init_ui()
+        
+    def init_ui(self):
+        self.setWindowTitle("Configuração de Mesas")
+        self.setModal(True)
+        self.setFixedSize(400, 200)
+        
+        layout = QVBoxLayout(self)
+        
+        # Título
+        title = QLabel("Bem-vindo ao Sistema de Padaria!")
+        title.setFont(QFont("Arial", 14, QFont.Bold))
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+        
+        # Descrição
+        desc = QLabel("Para começar, informe quantas mesas estão disponíveis no estabelecimento:")
+        desc.setWordWrap(True)
+        desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(desc)
+        
+        # Formulário
+        form_layout = QFormLayout()
+        
+        self.spin_numero_mesas = QSpinBox()
+        self.spin_numero_mesas.setMinimum(1)
+        self.spin_numero_mesas.setMaximum(50)
+        self.spin_numero_mesas.setValue(10)
+        self.spin_numero_mesas.setFont(QFont("Arial", 12))
+        form_layout.addRow("Número de Mesas:", self.spin_numero_mesas)
+        
+        layout.addLayout(form_layout)
+        
+        # Botões
+        btn_layout = QHBoxLayout()
+        btn_ok = QPushButton("Iniciar Sistema")
+        btn_ok.clicked.connect(self.accept)
+        btn_ok.setFont(QFont("Arial", 10, QFont.Bold))
+        btn_ok.setMinimumHeight(40)
+        
+        btn_layout.addWidget(btn_ok)
+        layout.addLayout(btn_layout)
+        
+    def get_numero_mesas(self):
+        """Retorna o número de mesas configurado"""
+        if self.result() == QDialog.Accepted:
+            return self.spin_numero_mesas.value()
+        return 0
+
 class AdicionarProdutoDialog(QDialog):
     """Diálogo para adicionar produto à comanda"""
     def __init__(self, produtos, parent=None):
@@ -67,6 +121,16 @@ class MainWindow(QMainWindow):
         self.comanda_atual = None
         self.pedido_online_atual = None
         self.ultima_data = None
+
+        # Verificar se há mesas cadastradas
+        mesas = self.api_client.listar_mesas()
+        if not mesas:
+            dialog = ConfiguracaoMesasDialog(self)
+            if dialog.exec_() == QDialog.Accepted:
+                numero_mesas = dialog.get_numero_mesas()
+                for i in range(1, numero_mesas + 1):
+                    self.api_client.criar_mesa(i)
+        
         self.init_ui()
         self.setup_timer()
         # Verificar se é um novo dia e limpar se necessário
@@ -88,7 +152,7 @@ class MainWindow(QMainWindow):
         # Título
         title = QLabel("Sistema de Gerenciamento - Padaria")
         title.setFont(QFont("Arial", 16, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
         # Tabs
@@ -178,7 +242,7 @@ class MainWindow(QMainWindow):
         right_layout.addLayout(btn_comanda_layout)
         
         # Adicionar painéis ao layout principal
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(left_panel)
         splitter.addWidget(right_panel)
         splitter.setSizes([400, 800])
@@ -359,7 +423,7 @@ class MainWindow(QMainWindow):
         right_layout.addLayout(btn_pedido_layout)
         
         # Adicionar painéis ao layout principal
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(left_panel)
         splitter.addWidget(right_panel)
         splitter.setSizes([400, 800])
@@ -570,15 +634,19 @@ class MainWindow(QMainWindow):
         """Seleciona uma comanda da lista"""
         current_row = self.table_comandas.currentRow()
         if current_row >= 0:
-            comanda_id = int(self.table_comandas.item(current_row, 0).text())
-            self.carregar_detalhes_comanda(comanda_id)
+            item = self.table_comandas.item(current_row, 0)
+            if item is not None:
+                comanda_id = int(item.text())
+                self.carregar_detalhes_comanda(comanda_id)
             
     def selecionar_pedido_online(self):
         """Seleciona um pedido online da lista"""
         current_row = self.table_pedidos_online.currentRow()
         if current_row >= 0:
-            pedido_id = int(self.table_pedidos_online.item(current_row, 0).text())
-            self.carregar_detalhes_pedido_online(pedido_id)
+            item = self.table_pedidos_online.item(current_row, 0)
+            if item is not None:
+                pedido_id = int(item.text())
+                self.carregar_detalhes_pedido_online(pedido_id)
             
     def carregar_detalhes_comanda(self, comanda_id):
         """Carrega detalhes de uma comanda"""

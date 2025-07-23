@@ -71,6 +71,26 @@ def gerar_qr_code_mesa(mesa_id: int, db: Session = Depends(get_db)):
         menu_url=menu_url
     )
 
+@app.put("/mesas/{mesa_id}/reservar")
+def reservar_mesa(mesa_id: int, db: Session = Depends(get_db)):
+    mesa = db.query(models.Mesa).filter(models.Mesa.id == mesa_id).first()
+    if not mesa:
+        raise HTTPException(status_code=404, detail="Mesa não encontrada")
+    if mesa.status == "ocupada":
+        raise HTTPException(status_code=400, detail="Mesa já está ocupada")
+    mesa.status = "reservada"
+    db.commit()
+    return {"message": "Mesa reservada com sucesso"}
+
+@app.put("/mesas/{mesa_id}/liberar")
+def liberar_mesa(mesa_id: int, db: Session = Depends(get_db)):
+    mesa = db.query(models.Mesa).filter(models.Mesa.id == mesa_id).first()
+    if not mesa:
+        raise HTTPException(status_code=404, detail="Mesa não encontrada")
+    mesa.status = "livre"
+    db.commit()
+    return {"message": "Mesa liberada com sucesso"}
+
 # Endpoints para Produtos
 @app.get("/produtos/", response_model=List[schemas.Produto])
 def listar_produtos(db: Session = Depends(get_db)):
@@ -566,6 +586,33 @@ async def enviar_contato(contato: dict):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao enviar mensagem: {str(e)}")
+
+@app.get("/comandas/{comanda_id}/status")
+def status_comanda(comanda_id: int, db: Session = Depends(get_db)):
+    comanda = db.query(models.Comanda).filter(models.Comanda.id == comanda_id).first()
+    if not comanda:
+        raise HTTPException(status_code=404, detail="Comanda não encontrada")
+    itens = db.query(models.ItemComanda).filter(models.ItemComanda.comanda_id == comanda_id).all()
+    status_itens = [item.status for item in itens]
+    # Lógica para status geral dos itens
+    if all(s == "pronto" for s in status_itens) and status_itens:
+        status_geral = "pronto"
+    elif any(s == "preparando" for s in status_itens):
+        status_geral = "preparando"
+    elif all(s == "pendente" for s in status_itens):
+        status_geral = "pendente"
+    else:
+        status_geral = "parcial"
+    return {
+        "comanda_id": comanda.id,
+        "mesa_numero": comanda.mesa.numero if comanda.mesa else None,
+        "status_comanda": comanda.status,
+        "status_geral_itens": status_geral,
+        "itens": [
+            {"produto": item.produto.nome if item.produto else "", "status": item.status}
+            for item in itens
+        ]
+    }
 
 if __name__ == "__main__":
     import uvicorn
