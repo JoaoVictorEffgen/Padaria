@@ -13,6 +13,7 @@ class GarcomPanel(QWidget):
         self.chamada_alerta_widget = None
         self.chamada_alerta_sound = None
         self.chamada_comanda_id = None
+        self.chamadas_fila = []  # Fila de comandas chamando garçom
         self.init_ui()
         self.setup_timer()
         
@@ -100,10 +101,21 @@ class GarcomPanel(QWidget):
             elif filtro == "Aguardando Pagamento":
                 comandas = [c for c in comandas if c["status"] == "aguardando_pagamento"]
             
-            # Verificar se há chamada de garçom
-            chamada = next((c for c in comandas if c.get("chamando_garcom")), None)
-            if chamada:
-                self.exibir_alerta_chamada(chamada)
+            # Atualizar fila de chamadas
+            novas_chamadas = [c for c in comandas if c.get("chamando_garcom")]
+            # Ordenar por data_abertura (ou id como fallback)
+            novas_chamadas.sort(key=lambda c: (c.get("data_abertura", ""), c["id"]))
+            # Atualizar fila mantendo ordem e sem duplicatas
+            ids_atuais = [c["id"] for c in self.chamadas_fila]
+            for chamada in novas_chamadas:
+                if chamada["id"] not in ids_atuais:
+                    self.chamadas_fila.append(chamada)
+            # Remover chamadas que não existem mais
+            self.chamadas_fila = [c for c in self.chamadas_fila if c["id"] in [nc["id"] for nc in novas_chamadas]]
+
+            # Exibir alerta para a primeira da fila
+            if self.chamadas_fila:
+                self.exibir_alerta_chamada(self.chamadas_fila[0])
             else:
                 self.ocultar_alerta_chamada()
             
@@ -232,10 +244,11 @@ class GarcomPanel(QWidget):
             QMessageBox.warning(self, "Erro", f"Erro ao carregar detalhes: {e}") 
 
     def exibir_alerta_chamada(self, comanda):
-        """Exibe alerta visual e sonoro de chamada de garçom"""
-        if self.chamada_alerta_widget:
-            # Já está exibindo
+        """Exibe alerta visual de chamada de garçom para a primeira da fila"""
+        if self.chamada_alerta_widget and self.chamada_comanda_id == comanda["id"]:
+            # Já está exibindo para esta comanda
             return
+        self.ocultar_alerta_chamada()
         self.chamada_comanda_id = comanda["id"]
         self.chamada_alerta_widget = QDialog(self)
         self.chamada_alerta_widget.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
@@ -253,13 +266,20 @@ class GarcomPanel(QWidget):
         btn_atender.setFont(QFont("Arial", 20, QFont.Bold))
         btn_atender.clicked.connect(self.atender_chamada_garcom)
         layout.addWidget(btn_atender)
+        # Se houver mais chamadas na fila, mostrar info
+        if len(self.chamadas_fila) > 1:
+            fila_info = QLabel(f"Próximas chamadas: {', '.join(['Mesa '+str(c['mesa_numero']) for c in self.chamadas_fila[1:]])}")
+            fila_info.setFont(QFont("Arial", 16, QFont.Bold))
+            fila_info.setAlignment(Qt.AlignCenter)
+            layout.addWidget(fila_info)
         self.chamada_alerta_widget.setLayout(layout)
-        self.chamada_alerta_widget.resize(600, 200)
+        self.chamada_alerta_widget.resize(600, 250)
         self.chamada_alerta_widget.show()
-        # Som de alerta
-        self.chamada_alerta_sound = QSound("alerta.wav")
-        self.chamada_alerta_sound.setLoops(QSound.Infinite)
-        self.chamada_alerta_sound.play()
+        # (Opcional: Som de alerta pode ser removido ou comentado)
+        # self.chamada_alerta_sound = QSound("alerta.wav")
+        # self.chamada_alerta_sound.setLoops(QSound.Infinite)
+        # self.chamada_alerta_sound.play()
+
     def ocultar_alerta_chamada(self):
         if self.chamada_alerta_widget:
             self.chamada_alerta_widget.close()
@@ -268,12 +288,18 @@ class GarcomPanel(QWidget):
             self.chamada_alerta_sound.stop()
             self.chamada_alerta_sound = None
         self.chamada_comanda_id = None
+
     def atender_chamada_garcom(self):
-        """Envia requisição para atender chamada de garçom e oculta alerta"""
+        """Envia requisição para atender chamada de garçom, remove da fila e exibe próxima"""
         if self.chamada_comanda_id:
             try:
                 self.api_client._make_request("PUT", f"/comandas/{self.chamada_comanda_id}/atender-garcom")
             except Exception as e:
                 QMessageBox.warning(self, "Erro", f"Erro ao atender chamada: {e}")
+        # Remover a chamada atendida da fila
+        self.chamadas_fila = [c for c in self.chamadas_fila if c["id"] != self.chamada_comanda_id]
         self.ocultar_alerta_chamada()
+        # Exibir próxima chamada, se houver
+        if self.chamadas_fila:
+            self.exibir_alerta_chamada(self.chamadas_fila[0])
         self.atualizar_comandas() 

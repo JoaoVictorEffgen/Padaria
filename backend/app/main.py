@@ -201,6 +201,19 @@ def obter_comanda(comanda_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Comanda não encontrada")
     return comanda
 
+@app.put("/comandas/{comanda_id}/solicitar-fechamento")
+def solicitar_fechamento_comanda(comanda_id: int, db: Session = Depends(get_db)):
+    comanda = db.query(models.Comanda).filter(models.Comanda.id == comanda_id).first()
+    if not comanda:
+        raise HTTPException(status_code=404, detail="Comanda não encontrada")
+    
+    # Colocar comanda em modo de espera (não fechar diretamente)
+    comanda.status = "aguardando_pagamento"
+    # Não definir data_fechamento ainda - apenas quando for finalizada no desktop
+    
+    db.commit()
+    return {"message": "Comanda enviada para o caixa - aguardando finalização"}
+
 @app.put("/comandas/{comanda_id}/fechar")
 def fechar_comanda(comanda_id: int, db: Session = Depends(get_db)):
     comanda = db.query(models.Comanda).filter(models.Comanda.id == comanda_id).first()
@@ -586,6 +599,151 @@ async def enviar_contato(contato: dict):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao enviar mensagem: {str(e)}")
+
+# ============================================================================
+# ENDPOINTS PARA CLIENTES
+# ============================================================================
+
+@app.post("/clientes/", response_model=schemas.Cliente)
+def criar_cliente(cliente: schemas.ClienteCreate, db: Session = Depends(get_db)):
+    """Criar novo cliente"""
+    # Verificar se telefone já existe
+    cliente_existente = db.query(models.Cliente).filter(models.Cliente.telefone == cliente.telefone).first()
+    if cliente_existente:
+        raise HTTPException(status_code=400, detail="Telefone já cadastrado")
+    
+    db_cliente = models.Cliente(**cliente.dict())
+    db.add(db_cliente)
+    db.commit()
+    db.refresh(db_cliente)
+    return db_cliente
+
+@app.get("/clientes/", response_model=List[schemas.Cliente])
+def listar_clientes(db: Session = Depends(get_db)):
+    """Listar todos os clientes"""
+    return db.query(models.Cliente).order_by(models.Cliente.nome).all()
+
+@app.get("/clientes/{cliente_id}", response_model=schemas.Cliente)
+def obter_cliente(cliente_id: int, db: Session = Depends(get_db)):
+    """Obter cliente por ID"""
+    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    return cliente
+
+@app.get("/clientes/telefone/{telefone}", response_model=schemas.Cliente)
+def obter_cliente_por_telefone(telefone: str, db: Session = Depends(get_db)):
+    """Obter cliente por telefone"""
+    cliente = db.query(models.Cliente).filter(models.Cliente.telefone == telefone).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    return cliente
+
+# ============================================================================
+# ENDPOINTS PARA RESERVAS
+# ============================================================================
+
+@app.post("/reservas/", response_model=schemas.Reserva)
+def criar_reserva(reserva: schemas.ReservaCreate, db: Session = Depends(get_db)):
+    """Criar nova reserva"""
+    # Verificar se a mesa existe
+    mesa = db.query(models.Mesa).filter(models.Mesa.id == reserva.mesa_id).first()
+    if not mesa:
+        raise HTTPException(status_code=404, detail="Mesa não encontrada")
+    
+    # Verificar se o cliente existe
+    cliente = db.query(models.Cliente).filter(models.Cliente.id == reserva.cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    
+    # Verificar se a mesa está disponível para reserva
+    if mesa.status == "reservada":
+        raise HTTPException(status_code=400, detail="Mesa já está reservada")
+    
+    # Verificar se não há conflito de horário
+    reservas_existentes = db.query(models.Reserva).filter(
+        models.Reserva.mesa_id == reserva.mesa_id,
+        models.Reserva.data_reserva == reserva.data_reserva,
+        models.Reserva.status == "ativa"
+    ).all()
+    
+    if reservas_existentes:
+        raise HTTPException(status_code=400, detail="Mesa já reservada para este horário")
+    
+    # Criar reserva
+    db_reserva = models.Reserva(**reserva.dict())
+    db.add(db_reserva)
+    
+    # Atualizar status da mesa
+    mesa.status = "reservada"
+    
+    db.commit()
+    db.refresh(db_reserva)
+    return db_reserva
+
+@app.get("/reservas/", response_model=List[schemas.ReservaResumo])
+def listar_reservas(db: Session = Depends(get_db)):
+    """Listar todas as reservas"""
+    reservas = db.query(models.Reserva).filter(models.Reserva.status == "ativa").all()
+    resultado = []
+    for reserva in reservas:
+        resultado.append(schemas.ReservaResumo(
+            id=reserva.id,
+            mesa_numero=reserva.mesa.numero,
+            nome_cliente=reserva.cliente.nome,
+            telefone_cliente=reserva.cliente.telefone,
+            data_reserva=reserva.data_reserva,
+            horario_reserva=reserva.horario_reserva,
+            status=reserva.status
+        ))
+    return resultado
+
+@app.get("/reservas/mesa/{mesa_id}")
+def obter_reservas_mesa(mesa_id: int, db: Session = Depends(get_db)):
+    """Obter reservas de uma mesa específica"""
+    reservas = db.query(models.Reserva).filter(
+        models.Reserva.mesa_id == mesa_id,
+        models.Reserva.status == "ativa"
+    ).all()
+    
+    if not reservas:
+        return {"message": "Mesa sem reservas", "reservas": []}
+    
+    resultado = []
+    for reserva in reservas:
+        resultado.append({
+            "id": reserva.id,
+            "nome_cliente": reserva.cliente.nome,
+            "telefone": reserva.cliente.telefone,
+            "data_reserva": reserva.data_reserva,
+            "horario_reserva": reserva.horario_reserva,
+            "observacoes": reserva.observacoes
+        })
+    
+    return {"reservas": resultado}
+
+@app.put("/reservas/{reserva_id}/cancelar")
+def cancelar_reserva(reserva_id: int, db: Session = Depends(get_db)):
+    """Cancelar uma reserva"""
+    reserva = db.query(models.Reserva).filter(models.Reserva.id == reserva_id).first()
+    if not reserva:
+        raise HTTPException(status_code=404, detail="Reserva não encontrada")
+    
+    # Cancelar reserva
+    reserva.status = "cancelada"
+    
+    # Verificar se a mesa pode voltar para livre
+    outras_reservas = db.query(models.Reserva).filter(
+        models.Reserva.mesa_id == reserva.mesa_id,
+        models.Reserva.status == "ativa"
+    ).all()
+    
+    if not outras_reservas:
+        mesa = reserva.mesa
+        mesa.status = "livre"
+    
+    db.commit()
+    return {"message": "Reserva cancelada com sucesso"}
 
 @app.get("/comandas/{comanda_id}/status")
 def status_comanda(comanda_id: int, db: Session = Depends(get_db)):

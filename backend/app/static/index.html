@@ -124,6 +124,109 @@
         </div>
     </section>
 
+    <!-- Modal de Reserva -->
+    <div id="reservaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reservar Mesa</h3>
+                <span class="close" onclick="closeReservaModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="reservaForm">
+                    <div class="form-group">
+                        <label for="clienteNome">Nome Completo *</label>
+                        <input type="text" id="clienteNome" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="clienteTelefone">Telefone *</label>
+                        <input type="tel" id="clienteTelefone" placeholder="(11) 99999-9999" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="clienteEndereco">Endereço *</label>
+                        <textarea id="clienteEndereco" rows="2" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="dataReserva">Data da Reserva *</label>
+                        <input type="date" id="dataReserva" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="horarioReserva">Horário *</label>
+                        <select id="horarioReserva" required>
+                            <option value="">Selecione o horário</option>
+                            <option value="12:00">12:00</option>
+                            <option value="12:30">12:30</option>
+                            <option value="13:00">13:00</option>
+                            <option value="13:30">13:30</option>
+                            <option value="14:00">14:00</option>
+                            <option value="18:00">18:00</option>
+                            <option value="18:30">18:30</option>
+                            <option value="19:00">19:00</option>
+                            <option value="19:30">19:30</option>
+                            <option value="20:00">20:00</option>
+                            <option value="20:30">20:30</option>
+                            <option value="21:00">21:00</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="observacoes">Observações</label>
+                        <textarea id="observacoes" rows="2" placeholder="Alguma observação especial?"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeReservaModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Confirmar Reserva</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Cliente Existente -->
+    <div id="clienteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Cliente Cadastrado</h3>
+                <span class="close" onclick="closeClienteModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="cliente-info">
+                    <p><strong>Nome:</strong> <span id="clienteNomeExibicao"></span></p>
+                    <p><strong>Telefone:</strong> <span id="clienteTelefoneExibicao"></span></p>
+                    <p><strong>Endereço:</strong> <span id="clienteEnderecoExibicao"></span></p>
+                </div>
+                <div class="form-group">
+                    <label for="dataReservaExistente">Data da Reserva *</label>
+                    <input type="date" id="dataReservaExistente" required>
+                </div>
+                <div class="form-group">
+                    <label for="horarioReservaExistente">Horário *</label>
+                    <select id="horarioReservaExistente" required>
+                        <option value="">Selecione o horário</option>
+                        <option value="12:00">12:00</option>
+                        <option value="12:30">12:30</option>
+                        <option value="13:00">13:00</option>
+                        <option value="13:30">13:30</option>
+                        <option value="14:00">14:00</option>
+                        <option value="18:00">18:00</option>
+                        <option value="18:30">18:30</option>
+                        <option value="19:00">19:00</option>
+                        <option value="19:30">19:30</option>
+                        <option value="20:00">20:00</option>
+                        <option value="20:30">20:30</option>
+                        <option value="21:00">21:00</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="observacoesExistente">Observações</label>
+                    <textarea id="observacoesExistente" rows="2" placeholder="Alguma observação especial?"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeClienteModal()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmarReservaClienteExistente()">Confirmar Reserva</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- About Section -->
     <section id="about" class="about">
         <div class="container">

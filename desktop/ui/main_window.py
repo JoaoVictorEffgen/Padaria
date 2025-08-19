@@ -298,9 +298,16 @@ class MainWindow(QMainWindow):
         self.tab_widget.addTab(produtos_widget, "Produtos")
         
     def create_mesas_tab(self):
-        """Cria a aba de mesas"""
+        """Cria a aba de mesas e reservas"""
         mesas_widget = QWidget()
         layout = QVBoxLayout(mesas_widget)
+        
+        # Criar abas para Mesas e Reservas
+        mesas_tabs = QTabWidget()
+        
+        # Aba de Mesas
+        mesas_tab = QWidget()
+        mesas_layout = QVBoxLayout(mesas_tab)
         
         # Formulário de mesa
         form_group = QGroupBox("Cadastrar Mesa")
@@ -315,17 +322,95 @@ class MainWindow(QMainWindow):
         btn_cadastrar_mesa.clicked.connect(self.cadastrar_mesa)
         form_layout.addWidget(btn_cadastrar_mesa)
         
-        layout.addWidget(form_group)
+        mesas_layout.addWidget(form_group)
         
         # Tabela de mesas
         self.table_mesas = QTableWidget()
-        self.table_mesas.setColumnCount(4)
+        self.table_mesas.setColumnCount(5)
         self.table_mesas.setHorizontalHeaderLabels([
-            "ID", "Número", "Status", "Ações"
+            "ID", "Número", "Status", "Reserva", "Ações"
         ])
-        layout.addWidget(self.table_mesas)
+        mesas_layout.addWidget(self.table_mesas)
         
-        self.tab_widget.addTab(mesas_widget, "Mesas")
+        # Aba de Reservas
+        reservas_tab = QWidget()
+        reservas_layout = QVBoxLayout(reservas_tab)
+        
+        # Botões de ação para reservas
+        btn_reservas_layout = QHBoxLayout()
+        self.btn_atualizar_reservas = QPushButton("Atualizar Reservas")
+        self.btn_atualizar_reservas.clicked.connect(self.atualizar_reservas)
+        btn_reservas_layout.addWidget(self.btn_atualizar_reservas)
+        
+        reservas_layout.addLayout(btn_reservas_layout)
+        
+        # Tabela de reservas
+        self.table_reservas = QTableWidget()
+        self.table_reservas.setColumnCount(7)
+        self.table_reservas.setHorizontalHeaderLabels([
+            "ID", "Mesa", "Cliente", "Telefone", "Data", "Horário", "Ações"
+        ])
+        self.table_reservas.itemSelectionChanged.connect(self.selecionar_reserva)
+        reservas_layout.addWidget(self.table_reservas)
+        
+        # Painel de detalhes da reserva
+        reserva_details_group = QGroupBox("Detalhes da Reserva")
+        reserva_details_layout = QVBoxLayout(reserva_details_group)
+        
+        # Informações da reserva
+        reserva_info_layout = QGridLayout()
+        reserva_info_layout.addWidget(QLabel("Cliente:"), 0, 0)
+        self.lbl_reserva_cliente = QLabel("-")
+        reserva_info_layout.addWidget(self.lbl_reserva_cliente, 0, 1)
+        
+        reserva_info_layout.addWidget(QLabel("Telefone:"), 1, 0)
+        self.lbl_reserva_telefone = QLabel("-")
+        reserva_info_layout.addWidget(self.lbl_reserva_telefone, 1, 1)
+        
+        reserva_info_layout.addWidget(QLabel("Endereço:"), 2, 0)
+        self.lbl_reserva_endereco = QLabel("-")
+        reserva_info_layout.addWidget(self.lbl_reserva_endereco, 2, 1)
+        
+        reserva_info_layout.addWidget(QLabel("Data:"), 3, 0)
+        self.lbl_reserva_data = QLabel("-")
+        reserva_info_layout.addWidget(self.lbl_reserva_data, 3, 1)
+        
+        reserva_info_layout.addWidget(QLabel("Horário:"), 4, 0)
+        self.lbl_reserva_horario = QLabel("-")
+        reserva_info_layout.addWidget(self.lbl_reserva_horario, 4, 1)
+        
+        reserva_info_layout.addWidget(QLabel("Observações:"), 5, 0)
+        self.txt_reserva_observacoes = QTextEdit()
+        self.txt_reserva_observacoes.setMaximumHeight(60)
+        self.txt_reserva_observacoes.setReadOnly(True)
+        reserva_info_layout.addWidget(self.txt_reserva_observacoes, 5, 1)
+        
+        reserva_details_layout.addLayout(reserva_info_layout)
+        
+        # Botões de ação da reserva
+        btn_reserva_actions = QHBoxLayout()
+        self.btn_cancelar_reserva = QPushButton("Cancelar Reserva")
+        self.btn_cancelar_reserva.clicked.connect(self.cancelar_reserva)
+        self.btn_confirmar_chegada = QPushButton("Confirmar Chegada")
+        self.btn_confirmar_chegada.clicked.connect(self.confirmar_chegada_reserva)
+        
+        btn_reserva_actions.addWidget(self.btn_cancelar_reserva)
+        btn_reserva_actions.addWidget(self.btn_confirmar_chegada)
+        reserva_details_layout.addLayout(btn_reserva_actions)
+        
+        # Adicionar abas
+        mesas_tabs.addTab(mesas_tab, "Mesas")
+        mesas_tabs.addTab(reservas_tab, "Reservas")
+        
+        # Layout principal com splitter
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_splitter.addWidget(mesas_tabs)
+        main_splitter.addWidget(reserva_details_group)
+        main_splitter.setSizes([800, 400])
+        
+        layout.addWidget(main_splitter)
+        
+        self.tab_widget.addTab(mesas_widget, "Mesas & Reservas")
         
     def create_pedidos_online_tab(self):
         """Cria a aba de pedidos online"""
@@ -1070,4 +1155,167 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Sucesso", f"Relatório salvo com sucesso em:\n{filename}")
                 
         except Exception as e:
-            QMessageBox.warning(self, "Erro", f"Erro ao gerar relatório: {e}") 
+            QMessageBox.warning(self, "Erro", f"Erro ao gerar relatório: {e}")
+    
+    # ============================================================================
+    # FUNÇÕES PARA GERENCIAR RESERVAS
+    # ============================================================================
+    
+    def atualizar_reservas(self):
+        """Atualiza a lista de reservas"""
+        try:
+            reservas = self.api_client.listar_reservas()
+            self.preencher_tabela_reservas(reservas)
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao carregar reservas: {e}")
+    
+    def preencher_tabela_reservas(self, reservas):
+        """Preenche a tabela de reservas"""
+        self.table_reservas.setRowCount(len(reservas))
+        
+        for row, reserva in enumerate(reservas):
+            # ID
+            self.table_reservas.setItem(row, 0, QTableWidgetItem(str(reserva['id'])))
+            
+            # Mesa
+            self.table_reservas.setItem(row, 1, QTableWidgetItem(f"Mesa {reserva['mesa_numero']}"))
+            
+            # Cliente
+            self.table_reservas.setItem(row, 2, QTableWidgetItem(reserva['nome_cliente']))
+            
+            # Telefone
+            self.table_reservas.setItem(row, 3, QTableWidgetItem(reserva['telefone_cliente']))
+            
+            # Data
+            data = datetime.fromisoformat(reserva['data_reserva'].replace('Z', '+00:00'))
+            self.table_reservas.setItem(row, 4, QTableWidgetItem(data.strftime('%d/%m/%Y')))
+            
+            # Horário
+            self.table_reservas.setItem(row, 5, QTableWidgetItem(reserva['horario_reserva']))
+            
+            # Ações
+            btn_layout = QHBoxLayout()
+            btn_ver = QPushButton("Ver")
+            btn_ver.clicked.connect(lambda checked, r=reserva: self.selecionar_reserva_detalhes(r))
+            btn_layout.addWidget(btn_ver)
+            
+            # Criar widget para conter os botões
+            btn_widget = QWidget()
+            btn_widget.setLayout(btn_layout)
+            self.table_reservas.setCellWidget(row, 6, btn_widget)
+    
+    def selecionar_reserva(self):
+        """Seleciona uma reserva da tabela"""
+        current_row = self.table_reservas.currentRow()
+        if current_row >= 0:
+            reserva_id = int(self.table_reservas.item(current_row, 0).text())
+            try:
+                reservas = self.api_client.listar_reservas()
+                reserva = next((r for r in reservas if r['id'] == reserva_id), None)
+                if reserva:
+                    self.selecionar_reserva_detalhes(reserva)
+            except Exception as e:
+                QMessageBox.warning(self, "Erro", f"Erro ao carregar detalhes da reserva: {e}")
+    
+    def selecionar_reserva_detalhes(self, reserva):
+        """Exibe detalhes de uma reserva"""
+        try:
+            # Buscar informações completas do cliente
+            cliente = self.api_client.obter_cliente(reserva['cliente_id'])
+            
+            # Preencher labels
+            self.lbl_reserva_cliente.setText(cliente['nome'])
+            self.lbl_reserva_telefone.setText(cliente['telefone'])
+            self.lbl_reserva_endereco.setText(cliente['endereco'])
+            
+            # Data e horário
+            data = datetime.fromisoformat(reserva['data_reserva'].replace('Z', '+00:00'))
+            self.lbl_reserva_data.setText(data.strftime('%d/%m/%Y'))
+            self.lbl_reserva_horario.setText(reserva['horario_reserva'])
+            
+            # Observações
+            self.txt_reserva_observacoes.setText(reserva.get('observacoes', 'Sem observações'))
+            
+            # Armazenar reserva atual
+            self.reserva_atual = reserva
+            
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Erro ao carregar detalhes da reserva: {e}")
+    
+    def cancelar_reserva(self):
+        """Cancela uma reserva"""
+        if not hasattr(self, 'reserva_atual') or not self.reserva_atual:
+            QMessageBox.warning(self, "Aviso", "Nenhuma reserva selecionada")
+            return
+        
+        reply = QMessageBox.question(
+            self, 
+            "Confirmar Cancelamento", 
+            f"Tem certeza que deseja cancelar a reserva da Mesa {self.reserva_atual['mesa_numero']}?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                self.api_client.cancelar_reserva(self.reserva_atual['id'])
+                QMessageBox.information(self, "Sucesso", "Reserva cancelada com sucesso")
+                
+                # Atualizar tabelas
+                self.atualizar_reservas()
+                self.atualizar_mesas()
+                
+                # Limpar detalhes
+                self.limpar_detalhes_reserva()
+                
+            except Exception as e:
+                QMessageBox.warning(self, "Erro", f"Erro ao cancelar reserva: {e}")
+    
+    def confirmar_chegada_reserva(self):
+        """Confirma a chegada do cliente para uma reserva"""
+        if not hasattr(self, 'reserva_atual') or not self.reserva_atual:
+            QMessageBox.warning(self, "Aviso", "Nenhuma reserva selecionada")
+            return
+        
+        reply = QMessageBox.question(
+            self, 
+            "Confirmar Chegada", 
+            f"O cliente {self.reserva_atual['nome_cliente']} chegou para a reserva da Mesa {self.reserva_atual['mesa_numero']}?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                # Marcar reserva como finalizada
+                self.api_client.cancelar_reserva(self.reserva_atual['id'])
+                
+                # Abrir comanda para a mesa
+                mesa_id = self.reserva_atual['mesa_id']
+                self.api_client.criar_comanda(mesa_id)
+                
+                QMessageBox.information(self, "Sucesso", 
+                                      f"Chegada confirmada! Comanda aberta para Mesa {self.reserva_atual['mesa_numero']}")
+                
+                # Atualizar tabelas
+                self.atualizar_reservas()
+                self.atualizar_mesas()
+                self.atualizar_comandas()
+                
+                # Limpar detalhes
+                self.limpar_detalhes_reserva()
+                
+            except Exception as e:
+                QMessageBox.warning(self, "Erro", f"Erro ao confirmar chegada: {e}")
+    
+    def limpar_detalhes_reserva(self):
+        """Limpa os detalhes da reserva"""
+        self.lbl_reserva_cliente.setText("-")
+        self.lbl_reserva_telefone.setText("-")
+        self.lbl_reserva_endereco.setText("-")
+        self.lbl_reserva_data.setText("-")
+        self.lbl_reserva_horario.setText("-")
+        self.txt_reserva_observacoes.clear()
+        
+        if hasattr(self, 'reserva_atual'):
+            delattr(self, 'reserva_atual') 

@@ -151,6 +151,55 @@ class ComandaImpressao(BaseModel):
     class Config:
         from_attributes = True
 
+# Schemas para Cliente
+class ClienteBase(BaseModel):
+    nome: str
+    telefone: str
+    endereco: str
+
+class ClienteCreate(ClienteBase):
+    pass
+
+class Cliente(ClienteBase):
+    id: int
+    data_cadastro: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Schemas para Reserva
+class ReservaBase(BaseModel):
+    mesa_id: int
+    cliente_id: int
+    data_reserva: datetime
+    horario_reserva: str  # formato "HH:MM"
+    observacoes: Optional[str] = None
+
+class ReservaCreate(ReservaBase):
+    pass
+
+class Reserva(ReservaBase):
+    id: int
+    status: str
+    data_criacao: datetime
+    mesa: Mesa
+    cliente: Cliente
+    
+    class Config:
+        from_attributes = True
+
+class ReservaResumo(BaseModel):
+    id: int
+    mesa_numero: int
+    nome_cliente: str
+    telefone_cliente: str
+    data_reserva: datetime
+    horario_reserva: str
+    status: str
+    
+    class Config:
+        from_attributes = True
+
 # Schemas para QR Code
 class QRCodeResponse(BaseModel):
     mesa_id: int

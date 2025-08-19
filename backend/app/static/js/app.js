@@ -165,16 +165,16 @@ function createMesaCard(mesa) {
     let actionButton = '';
     if (mesa.status === 'livre') {
         actionButton = `
-            <button class="mesa-btn reservar" onclick="reservarMesa(${mesa.id})">
+            <button class="mesa-btn reservar" onclick="abrirModalReserva(${mesa.id})">
                 <i class="fas fa-bookmark"></i>
                 Reservar
             </button>
         `;
     } else if (mesa.status === 'reservada') {
         actionButton = `
-            <button class="mesa-btn liberar" onclick="liberarMesa(${mesa.id})">
-                <i class="fas fa-unlock"></i>
-                Liberar
+            <button class="mesa-btn ver-reserva" onclick="verReservaMesa(${mesa.id})">
+                <i class="fas fa-eye"></i>
+                Ver Reserva
             </button>
         `;
     } else {
@@ -191,7 +191,7 @@ function createMesaCard(mesa) {
             <i class="${icon}"></i>
         </div>
         <div class="mesa-numero">Mesa ${mesa.numero}</div>
-        <div class="mesa-status">${statusText}</div>
+        <div class="mesa-status ${mesa.status}">${statusText}</div>
         <div class="mesa-actions">
             ${actionButton}
         </div>
@@ -865,6 +865,200 @@ document.addEventListener('click', (e) => {
         closeModal();
     }
 });
+
+// ============================================================================
+// SISTEMA DE RESERVAS
+// ============================================================================
+
+let mesaSelecionada = null;
+let clienteAtual = null;
+
+// Abrir modal de reserva
+function abrirModalReserva(mesaId) {
+    mesaSelecionada = mesaId;
+    document.getElementById('reservaModal').classList.add('show');
+    
+    // Definir data mínima como hoje
+    const hoje = new Date().toISOString().split('T')[0];
+    document.getElementById('dataReserva').min = hoje;
+}
+
+// Fechar modal de reserva
+function closeReservaModal() {
+    document.getElementById('reservaModal').classList.remove('show');
+    document.getElementById('reservaForm').reset();
+    mesaSelecionada = null;
+}
+
+// Abrir modal de cliente existente
+function abrirModalClienteExistente(cliente) {
+    clienteAtual = cliente;
+    
+    // Preencher informações do cliente
+    document.getElementById('clienteNomeExibicao').textContent = cliente.nome;
+    document.getElementById('clienteTelefoneExibicao').textContent = cliente.telefone;
+    document.getElementById('clienteEnderecoExibicao').textContent = cliente.endereco;
+    
+    // Definir data mínima como hoje
+    const hoje = new Date().toISOString().split('T')[0];
+    document.getElementById('dataReservaExistente').min = hoje;
+    
+    document.getElementById('clienteModal').classList.add('show');
+}
+
+// Fechar modal de cliente existente
+function closeClienteModal() {
+    document.getElementById('clienteModal').classList.remove('show');
+    document.getElementById('dataReservaExistente').value = '';
+    document.getElementById('horarioReservaExistente').value = '';
+    document.getElementById('observacoesExistente').value = '';
+    clienteAtual = null;
+}
+
+// Ver reserva de uma mesa
+async function verReservaMesa(mesaId) {
+    try {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/reservas/mesa/${mesaId}`);
+        if (!response.ok) throw new Error('Erro ao carregar reserva');
+        
+        const data = await response.json();
+        
+        if (data.reservas && data.reservas.length > 0) {
+            const reserva = data.reservas[0];
+            showNotification(`Mesa reservada para ${reserva.nome_cliente} às ${reserva.horario_reserva}`);
+        } else {
+            showNotification('Mesa sem reservas ativas');
+        }
+    } catch (error) {
+        console.error('Erro ao ver reserva:', error);
+        showError('Erro ao carregar informações da reserva');
+    }
+}
+
+// Configurar formulário de reserva
+document.addEventListener('DOMContentLoaded', function() {
+    const reservaForm = document.getElementById('reservaForm');
+    if (reservaForm) {
+        reservaForm.addEventListener('submit', handleReservaForm);
+    }
+});
+
+// Processar formulário de reserva
+async function handleReservaForm(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const telefone = formData.get('clienteTelefone');
+    
+    try {
+        // Verificar se cliente já existe
+        const clienteResponse = await fetch(`${CONFIG.API_BASE_URL}/clientes/telefone/${telefone}`);
+        
+        if (clienteResponse.ok) {
+            // Cliente existe - mostrar modal de cliente existente
+            const cliente = await clienteResponse.json();
+            closeReservaModal();
+            abrirModalClienteExistente(cliente);
+            return;
+        }
+        
+        // Cliente não existe - criar novo cliente e reserva
+        await criarClienteEReserva(formData);
+        
+    } catch (error) {
+        console.error('Erro ao processar reserva:', error);
+        showError('Erro ao processar reserva. Tente novamente.');
+    }
+}
+
+// Criar cliente e reserva
+async function criarClienteEReserva(formData) {
+    try {
+        // 1. Criar cliente
+        const clienteData = {
+            nome: formData.get('clienteNome'),
+            telefone: formData.get('clienteTelefone'),
+            endereco: formData.get('clienteEndereco')
+        };
+        
+        const clienteResponse = await fetch(`${CONFIG.API_BASE_URL}/clientes/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(clienteData)
+        });
+        
+        if (!clienteResponse.ok) throw new Error('Erro ao criar cliente');
+        
+        const cliente = await clienteResponse.json();
+        
+        // 2. Criar reserva
+        const reservaData = {
+            mesa_id: mesaSelecionada,
+            cliente_id: cliente.id,
+            data_reserva: formData.get('dataReserva'),
+            horario_reserva: formData.get('horarioReserva'),
+            observacoes: formData.get('observacoes') || ''
+        };
+        
+        const reservaResponse = await fetch(`${CONFIG.API_BASE_URL}/reservas/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(reservaData)
+        });
+        
+        if (!reservaResponse.ok) throw new Error('Erro ao criar reserva');
+        
+        // 3. Sucesso
+        closeReservaModal();
+        showSuccess('Reserva criada com sucesso!');
+        loadMesas(); // Recarregar mesas
+        
+    } catch (error) {
+        console.error('Erro ao criar cliente e reserva:', error);
+        showError('Erro ao criar reserva. Tente novamente.');
+    }
+}
+
+// Confirmar reserva para cliente existente
+async function confirmarReservaClienteExistente() {
+    if (!clienteAtual || !mesaSelecionada) {
+        showError('Dados inválidos para reserva');
+        return;
+    }
+    
+    try {
+        const reservaData = {
+            mesa_id: mesaSelecionada,
+            cliente_id: clienteAtual.id,
+            data_reserva: document.getElementById('dataReservaExistente').value,
+            horario_reserva: document.getElementById('horarioReservaExistente').value,
+            observacoes: document.getElementById('observacoesExistente').value || ''
+        };
+        
+        const reservaResponse = await fetch(`${CONFIG.API_BASE_URL}/reservas/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(reservaData)
+        });
+        
+        if (!reservaResponse.ok) throw new Error('Erro ao criar reserva');
+        
+        // Sucesso
+        closeClienteModal();
+        showSuccess('Reserva criada com sucesso!');
+        loadMesas(); // Recarregar mesas
+        
+    } catch (error) {
+        console.error('Erro ao criar reserva:', error);
+        showError('Erro ao criar reserva. Tente novamente.');
+    }
+}
 
 // Atualizar carrinho quando a página é carregada
 window.addEventListener('load', () => {

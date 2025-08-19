@@ -200,4 +200,62 @@ class APIClient:
             "itens": itens,
             "observacoes": observacoes
         }
-        return self._make_request("POST", "/pedidos-online/", data) 
+        return self._make_request("POST", "/pedidos-online/", data)
+    
+    # ============================================================================
+    # MÉTODOS PARA CLIENTES
+    # ============================================================================
+    
+    def listar_clientes(self) -> List[Dict]:
+        """Lista todos os clientes"""
+        return self._make_request("GET", "/clientes/") or []
+    
+    def obter_cliente(self, cliente_id: int) -> Dict:
+        """Obtém um cliente específico"""
+        return self._make_request("GET", f"/clientes/{cliente_id}")
+    
+    def obter_cliente_por_telefone(self, telefone: str) -> Dict:
+        """Obtém cliente por telefone"""
+        return self._make_request("GET", f"/clientes/telefone/{telefone}")
+    
+    def criar_cliente(self, nome: str, telefone: str, endereco: str) -> Dict:
+        """Cria um novo cliente"""
+        data = {
+            "nome": nome,
+            "telefone": telefone,
+            "endereco": endereco
+        }
+        return self._make_request("POST", "/clientes/", data)
+    
+    # ============================================================================
+    # MÉTODOS PARA RESERVAS
+    # ============================================================================
+    
+    def listar_reservas(self) -> List[Dict]:
+        """Lista todas as reservas ativas"""
+        return self._make_request("GET", "/reservas/") or []
+    
+    def obter_reserva(self, reserva_id: int) -> Dict:
+        """Obtém uma reserva específica"""
+        return self._make_request("GET", f"/reservas/{reserva_id}")
+    
+    def obter_reservas_mesa(self, mesa_id: int) -> Dict:
+        """Obtém reservas de uma mesa específica"""
+        return self._make_request("GET", f"/reservas/mesa/{mesa_id}")
+    
+    def criar_reserva(self, mesa_id: int, cliente_id: int, data_reserva: str, 
+                     horario_reserva: str, observacoes: str = None) -> Dict:
+        """Cria uma nova reserva"""
+        data = {
+            "mesa_id": mesa_id,
+            "cliente_id": cliente_id,
+            "data_reserva": data_reserva,
+            "horario_reserva": horario_reserva
+        }
+        if observacoes:
+            data["observacoes"] = observacoes
+        return self._make_request("POST", "/reservas/", data)
+    
+    def cancelar_reserva(self, reserva_id: int) -> Dict:
+        """Cancela uma reserva"""
+        return self._make_request("PUT", f"/reservas/{reserva_id}/cancelar") 

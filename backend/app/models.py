@@ -12,6 +12,7 @@ class Mesa(Base):
     qr_code = Column(String, nullable=True)  # URL do QR Code
     
     comandas = relationship("Comanda", back_populates="mesa")
+    reservas = relationship("Reserva", back_populates="mesa")
 
 class Produto(Base):
     __tablename__ = "produtos"
@@ -87,6 +88,32 @@ class SincronizacaoOffline(Base):
     data_criacao = Column(DateTime(timezone=True), server_default=func.now())
     sincronizado = Column(Boolean, default=False)
     data_sincronizacao = Column(DateTime(timezone=True), nullable=True)
+
+class Cliente(Base):
+    __tablename__ = "clientes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String, index=True)
+    telefone = Column(String, unique=True, index=True)
+    endereco = Column(Text)
+    data_cadastro = Column(DateTime(timezone=True), server_default=func.now())
+    
+    reservas = relationship("Reserva", back_populates="cliente")
+
+class Reserva(Base):
+    __tablename__ = "reservas"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    mesa_id = Column(Integer, ForeignKey("mesas.id"))
+    cliente_id = Column(Integer, ForeignKey("clientes.id"))
+    data_reserva = Column(DateTime(timezone=True), nullable=False)
+    horario_reserva = Column(String, nullable=False)  # formato "HH:MM"
+    status = Column(String, default="ativa")  # ativa, cancelada, finalizada
+    observacoes = Column(Text, nullable=True)
+    data_criacao = Column(DateTime(timezone=True), server_default=func.now())
+    
+    mesa = relationship("Mesa", back_populates="reservas")
+    cliente = relationship("Cliente", back_populates="reservas")
 
 class PedidoOnline(Base):
     __tablename__ = "pedidos_online"
